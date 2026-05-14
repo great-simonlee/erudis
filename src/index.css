@@ -1,23 +1,46 @@
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Light theme (default: no .dark on <html>) */
+:root {
+  --surface-bg: #fafafa;
+  --surface-card: #ffffff;
+  --surface-raised: #f4f4f5;
+  --border-color: #e4e4e7;
+  --text-primary: #18181b;
+  --text-soft: #3f3f46;
+  --text-muted: #52525b;
+  --text-subtle: #71717a;
 }
 
-html {
-  -webkit-text-size-adjust: 100%;
+.dark {
+  --surface-bg: #0a0a0a;
+  --surface-card: #141414;
+  --surface-raised: #1a1a1a;
+  --border-color: #222222;
+  --text-primary: #fafafa;
+  --text-soft: #e4e4e7;
+  --text-muted: #a1a1aa;
+  --text-subtle: #71717a;
 }
 
-body {
-  margin: 0;
-  min-height: 100vh;
-  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background: #07060a;
-  color: #e8e6f2;
-}
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
 
-#root {
-  min-height: 100vh;
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: Inter, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: var(--surface-bg);
+    color: var(--text-primary);
+  }
+
+  #root {
+    min-height: 100vh;
+  }
 }

@@ -1,0 +1,29 @@
+export const COLORS = {
+  brand: '#1D9E75',
+  background: '#0a0a0a',
+  card: '#141414',
+  border: '#222222',
+} as const;
+
+export const ROUTES = {
+  login: '/login',
+  register: '/register',
+  verifyEmail: '/verify-email',
+  resetPassword: '/reset-password',
+  onboarding: '/onboarding',
+  feed: '/feed',
+  discover: '/discover',
+  labs: '/labs',
+  papers: '/papers',
+  jobs: '/jobs',
+  messages: '/messages',
+  settings: '/settings',
+  profile: (uid: string) => `/profile/${uid}`,
+  lab: (id: string) => `/lab/${id}`,
+} as const;
+
+export { RESEARCH_FIELD_CATALOG } from './researchFields';
+/** @deprecated Prefer RESEARCH_FIELD_CATALOG — same list, kept for older imports. */
+export { RESEARCH_FIELD_CATALOG as FIELD_CATEGORIES } from './researchFields';
+
+export type FieldCategory = string;

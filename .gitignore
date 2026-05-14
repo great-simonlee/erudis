@@ -21,3 +21,8 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.vercel
+.env*.local
+
+# Local Firestore rules reference (not committed)
+FIRESTORE_RULES.md
