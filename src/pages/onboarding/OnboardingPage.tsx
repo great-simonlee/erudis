@@ -462,7 +462,11 @@ export function OnboardingPage() {
                     className="absolute left-0 right-0 top-full z-30 mt-1 max-h-48 overflow-y-auto rounded-lg border-2 border-border bg-surface-raised py-1 shadow-xl ring-1 ring-black/5 dark:border-zinc-500/80 dark:bg-zinc-950 dark:ring-white/10 dark:shadow-[0_12px_48px_rgba(0,0,0,0.75)]"
                   >
                     {filteredInstitutions.slice(0, 12).map((row) => (
-                      <li key={row.id} role="option">
+                      <li
+                        key={row.id}
+                        role="option"
+                        aria-selected={institutionPick?.id === row.id}
+                      >
                         <button
                           type="button"
                           onClick={() => {
