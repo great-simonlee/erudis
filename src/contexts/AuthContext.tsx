@@ -67,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ref,
       (snap) => {
         if (snap.exists()) {
-          setProfile(snap.data() as UserProfile);
+          setProfile({ uid: snap.id, ...(snap.data() as Omit<UserProfile, 'uid'>) });
         } else {
           setProfile(null);
         }

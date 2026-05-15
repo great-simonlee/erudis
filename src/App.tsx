@@ -14,12 +14,20 @@ import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
 import { OnboardingPage } from './pages/onboarding/OnboardingPage';
 import { FeedPage } from './pages/feed/FeedPage';
 import { DiscoverPage } from './pages/discover/DiscoverPage';
+import { BriefPage } from './pages/discover/BriefPage';
 import { LabsPage } from './pages/lab/LabsPage';
+import { LabCreatePage } from './pages/lab/LabCreatePage';
+import { LabProfilePage } from './pages/lab/LabProfilePage';
+import { LabSettingsPage } from './pages/lab/LabSettingsPage';
 import { PapersPage } from './pages/papers/PapersPage';
 import { JobsPage } from './pages/jobs/JobsPage';
+import { JobDetailPage } from './pages/jobs/JobDetailPage';
+import { JobPostPage } from './pages/jobs/JobPostPage';
 import { MessagesPage } from './pages/messages/MessagesPage';
 import { SettingsPage } from './pages/settings/SettingsPage';
+import { PricingPage } from './pages/pricing/PricingPage';
 import { ProfilePage } from './pages/profile/ProfilePage';
+import { ProfileLogsPage } from './pages/profile/ProfileLogsPage';
 import { ROUTES } from './constants';
 
 export default function App() {
@@ -37,12 +45,20 @@ export default function App() {
               <Route element={<MainLayout />}>
                 <Route path={ROUTES.feed} element={<FeedPage />} />
                 <Route path={ROUTES.discover} element={<DiscoverPage />} />
+                <Route path={ROUTES.brief} element={<BriefPage />} />
                 <Route path={ROUTES.labs} element={<LabsPage />} />
+                <Route path={ROUTES.labCreate} element={<LabCreatePage />} />
+                <Route path="/lab/:labId/settings" element={<LabSettingsPage />} />
+                <Route path="/lab/:labId" element={<LabProfilePage />} />
                 <Route path={ROUTES.papers} element={<PapersPage />} />
+                <Route path={ROUTES.jobsPost} element={<JobPostPage />} />
+                <Route path="/jobs/:jobId" element={<JobDetailPage />} />
                 <Route path={ROUTES.jobs} element={<JobsPage />} />
+                <Route path={ROUTES.pricing} element={<PricingPage />} />
                 <Route path={ROUTES.messages} element={<MessagesPage />} />
                 <Route path={ROUTES.settings} element={<SettingsPage />} />
                 <Route path="/profile/:uid" element={<ProfilePage />} />
+                <Route path="/profile/:uid/logs" element={<ProfileLogsPage />} />
               </Route>
               <Route path="*" element={<Navigate to={ROUTES.feed} replace />} />
             </>
@@ -61,12 +77,20 @@ export default function App() {
                     <Route element={<MainLayout />}>
                       <Route path={ROUTES.feed} element={<FeedPage />} />
                       <Route path={ROUTES.discover} element={<DiscoverPage />} />
+                      <Route path={ROUTES.brief} element={<BriefPage />} />
                       <Route path={ROUTES.labs} element={<LabsPage />} />
+                      <Route path={ROUTES.labCreate} element={<LabCreatePage />} />
+                      <Route path="/lab/:labId/settings" element={<LabSettingsPage />} />
+                      <Route path="/lab/:labId" element={<LabProfilePage />} />
                       <Route path={ROUTES.papers} element={<PapersPage />} />
+                      <Route path={ROUTES.jobsPost} element={<JobPostPage />} />
+                      <Route path="/jobs/:jobId" element={<JobDetailPage />} />
                       <Route path={ROUTES.jobs} element={<JobsPage />} />
+                      <Route path={ROUTES.pricing} element={<PricingPage />} />
                       <Route path={ROUTES.messages} element={<MessagesPage />} />
                       <Route path={ROUTES.settings} element={<SettingsPage />} />
                       <Route path="/profile/:uid" element={<ProfilePage />} />
+                      <Route path="/profile/:uid/logs" element={<ProfileLogsPage />} />
                     </Route>
                   </Route>
                 </Route>

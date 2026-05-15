@@ -15,7 +15,7 @@ export function RightSidebar() {
   ];
 
   return (
-    <aside className="hidden h-screen w-[300px] shrink-0 overflow-y-auto border-l border-border bg-surface px-4 py-6 xl:block">
+    <aside className="hidden h-full min-h-0 w-[300px] shrink-0 overflow-y-auto border-l border-border bg-surface px-4 py-6 xl:flex xl:flex-col">
       <section>
         <h2 className="text-xs font-semibold uppercase tracking-wide text-fg-subtle">
           Trending this week

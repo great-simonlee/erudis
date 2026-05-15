@@ -19,7 +19,14 @@ export const ROUTES = {
   messages: '/messages',
   settings: '/settings',
   profile: (uid: string) => `/profile/${uid}`,
+  profileLogs: (uid: string) => `/profile/${uid}/logs`,
   lab: (id: string) => `/lab/${id}`,
+  labCreate: '/lab/create',
+  labSettings: (id: string) => `/lab/${id}/settings`,
+  brief: '/brief',
+  pricing: '/pricing',
+  job: (id: string) => `/jobs/${id}`,
+  jobsPost: '/jobs/post',
 } as const;
 
 export { RESEARCH_FIELD_CATALOG } from './researchFields';

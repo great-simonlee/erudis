@@ -1,6 +1,5 @@
 import { NavLink } from 'react-router-dom';
 import { ROUTES } from '../../constants';
-import { skipFirebase, demoUserId } from '../../config/flags';
 import { useAuth } from '../../hooks/useAuth';
 
 const tabClass = ({ isActive }: { isActive: boolean }) =>
@@ -18,7 +17,7 @@ function IconPlus() {
 
 export function MobileTabBar() {
   const { user } = useAuth();
-  const uid = user?.uid ?? (skipFirebase ? demoUserId : 'me');
+  const profilePath = user?.uid ? ROUTES.profile(user.uid) : ROUTES.feed;
 
   return (
     <nav
@@ -41,7 +40,7 @@ export function MobileTabBar() {
         <span className="text-base leading-none">⚗</span>
         Labs
       </NavLink>
-      <NavLink to={ROUTES.profile(uid)} className={tabClass}>
+      <NavLink to={profilePath} className={tabClass}>
         <span className="text-base leading-none">◉</span>
         Profile
       </NavLink>

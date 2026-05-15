@@ -23,3 +23,8 @@ export const useCentralVerificationInbox = true;
 export const extraInstitutionalEmailDomains: readonly string[] = [
   'misaeng.com',
 ];
+
+/** When true, the feed page can seed sample posts + feed items (dev or REACT_APP_ENABLE_DUMMY_SEED). */
+export const enableDummyFeedSeed =
+  process.env.NODE_ENV === 'development' ||
+  process.env.REACT_APP_ENABLE_DUMMY_SEED === 'true';

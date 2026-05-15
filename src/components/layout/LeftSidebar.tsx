@@ -1,7 +1,9 @@
 import { NavLink } from 'react-router-dom';
 import { ROUTES } from '../../constants';
 import { useAuth } from '../../hooks/useAuth';
+import { roleLabel } from '../../utils/roleLabels';
 import { ThemeToggle } from '../shared/ThemeToggle';
+import { NotificationBell } from './NotificationBell';
 
 function IconHome(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -69,6 +71,17 @@ function IconChat(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
+function IconPerson(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden {...props}>
+      <path
+        fill="currentColor"
+        d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4m0 2c-4.33 0-8 2.17-8 5v3h16v-3c0-2.83-3.67-5-8-5"
+      />
+    </svg>
+  );
+}
+
 function IconGear(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden {...props}>
@@ -87,30 +100,19 @@ const navClass = ({ isActive }: { isActive: boolean }) =>
       : 'border-transparent text-fg-muted hover:bg-surface-raised/60 hover:text-fg-soft'
   }`;
 
-const ROLE_LABEL: Record<string, string> = {
-  professor: 'Professor / PI',
-  phd: 'PhD Candidate',
-  postdoc: 'Postdoctoral Researcher',
-  researcher: 'Researcher',
-  research_scientist: 'Research Scientist',
-  industry_researcher: 'Industry Researcher',
-  institution_admin: 'Admin',
-  pending: 'Set in onboarding',
-};
-
 export function LeftSidebar() {
   const { user, profile } = useAuth();
-  const unread = 2;
 
   return (
-    <aside className="hidden h-screen w-[240px] shrink-0 flex-col border-r border-border bg-surface md:flex">
-      <div className="border-b border-border px-4 py-5">
+    <aside className="hidden h-full min-h-0 w-[240px] shrink-0 flex-col overflow-y-auto border-r border-border bg-surface md:flex">
+      <div className="flex items-start justify-between gap-2 border-b border-border px-4 py-5">
         <NavLink
           to={ROUTES.feed}
           className="font-display text-lg tracking-tight text-fg"
         >
           THE ERUDIS
         </NavLink>
+        <NotificationBell uid={user?.uid} />
       </div>
 
       <nav className="flex flex-1 flex-col gap-0.5 px-2 py-4" aria-label="Main">
@@ -129,23 +131,14 @@ export function LeftSidebar() {
         <NavLink to={ROUTES.jobs} className={navClass}>
           <IconBriefcase /> Jobs
         </NavLink>
-        <NavLink
-          to={ROUTES.messages}
-          className={(props) =>
-            `${navClass(props)} justify-between gap-0 pr-2`
-          }
-        >
-          <span className="flex items-center gap-3">
-            <IconChat /> Messages
-          </span>
-          {unread > 0 ? (
-            <span className="rounded bg-brand px-1.5 py-0.5 text-[10px] font-semibold text-fg">
-              {unread}
-            </span>
-          ) : (
-            <span className="w-6" />
-          )}
+        <NavLink to={ROUTES.messages} className={navClass}>
+          <IconChat /> Messages
         </NavLink>
+        {user?.uid && (
+          <NavLink to={ROUTES.profile(user.uid)} className={navClass}>
+            <IconPerson /> My profile
+          </NavLink>
+        )}
       </nav>
 
       <div className="mt-auto border-t border-border px-2 py-4">
@@ -155,17 +148,30 @@ export function LeftSidebar() {
         <NavLink to={ROUTES.settings} className={navClass}>
           <IconGear /> Settings
         </NavLink>
-        <div className="mt-4 flex items-center gap-3 px-3 py-2">
-          <div className="h-9 w-9 shrink-0 rounded-full border border-brand bg-zinc-200 dark:bg-zinc-800" />
+        <NavLink
+          to={user?.uid ? ROUTES.profile(user.uid) : ROUTES.feed}
+          className="mt-4 flex items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-surface-raised/60"
+        >
+          {profile?.avatarUrl ? (
+            <img
+              src={profile.avatarUrl}
+              alt=""
+              className="h-9 w-9 shrink-0 rounded-full border border-brand object-cover"
+            />
+          ) : (
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-brand bg-zinc-200 text-xs font-medium text-fg-muted dark:bg-zinc-800">
+              {(profile?.name ?? user?.displayName ?? '?').slice(0, 1).toUpperCase()}
+            </div>
+          )}
           <div className="min-w-0">
             <p className="truncate text-sm font-medium text-fg">
               {profile?.name ?? user?.displayName ?? 'Member'}
             </p>
             <p className="truncate text-xs text-fg-subtle">
-              {profile?.role ? ROLE_LABEL[profile.role] ?? profile.role : '—'}
+              {profile?.role ? roleLabel(profile.role) : '—'}
             </p>
           </div>
-        </div>
+        </NavLink>
       </div>
     </aside>
   );
