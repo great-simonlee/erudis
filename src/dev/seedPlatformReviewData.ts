@@ -1,4 +1,5 @@
 import {
+  Timestamp,
   addDoc,
   collection,
   doc,
@@ -8,7 +9,8 @@ import {
   writeBatch,
   type Firestore,
 } from 'firebase/firestore';
-import { seedDummyPostsForUser } from './seedDummyFeedData';
+import { linkCurrentUserToDemoEcosystem } from './linkDemoEcosystem';
+import type { PostType, PostVisibility } from '../types';
 
 export type SeedReviewParams = {
   uid: string;
@@ -17,6 +19,50 @@ export type SeedReviewParams = {
   primaryLabId: string | null;
   labIds: string[];
 };
+
+const ACCOUNT_SAMPLE_POSTS: {
+  title: string;
+  content: string;
+  type: PostType;
+  tags: string[];
+  researchArea: string;
+  resonateCount?: number;
+  commentCount?: number;
+  viewCount?: number;
+}[] = [
+  {
+    title: 'Lab wiki: weekly sync template',
+    type: 'update',
+    researchArea: 'Computer Science',
+    tags: ['lab-culture', 'process'],
+    content:
+      'We use a **30-minute** standing agenda: wins, blockers, one deep dive. Notes live in the shared doc for newcomers.',
+    resonateCount: 4,
+    commentCount: 1,
+    viewCount: 62,
+  },
+  {
+    title: 'Benchmark note: document your hardware profile',
+    type: 'result',
+    researchArea: 'AI/ML',
+    tags: ['benchmarks', 'reproducibility'],
+    content:
+      'Latency moved **12%** under CPU throttle — posting configs next to scores helped us debug.',
+    resonateCount: 6,
+    viewCount: 98,
+  },
+  {
+    title: 'Looking for surveys on causal discovery',
+    type: 'question',
+    researchArea: 'Statistics',
+    tags: ['causality', 'reading'],
+    content:
+      'Prefer **post-2020** work covering continuous and mixed data. What did your reading group use?',
+    resonateCount: 2,
+    commentCount: 3,
+    viewCount: 44,
+  },
+];
 
 const DEMO_LOGS = [
   {
@@ -74,14 +120,70 @@ const DEMO_PAPERS = [
   },
 ];
 
+async function seedAccountPosts(
+  db: Firestore,
+  params: { authorId: string; institutionId: string | null; labId: string | null }
+): Promise<void> {
+  const { authorId, institutionId } = params;
+  const baseMs = Date.now();
+  let batch = writeBatch(db);
+  let ops = 0;
+
+  const commitIfNeeded = async () => {
+    if (ops >= 400) {
+      await batch.commit();
+      batch = writeBatch(db);
+      ops = 0;
+    }
+  };
+
+  for (let i = 0; i < ACCOUNT_SAMPLE_POSTS.length; i++) {
+    const spec = ACCOUNT_SAMPLE_POSTS[i]!;
+    const postRef = doc(collection(db, 'posts'));
+    const createdAt = Timestamp.fromMillis(baseMs - (i + 1) * 3_600_000);
+    const visibility: PostVisibility = 'public';
+
+    batch.set(postRef, {
+      authorId,
+      labId: null,
+      institutionId,
+      type: spec.type,
+      title: spec.title,
+      content: spec.content,
+      attachments: [],
+      tags: spec.tags,
+      researchArea: spec.researchArea,
+      resonateCount: spec.resonateCount ?? 0,
+      viewCount: spec.viewCount ?? 0,
+      commentCount: spec.commentCount ?? 0,
+      visibility,
+      isPendingApproval: false,
+      createdAt,
+      updatedAt: createdAt,
+    });
+    ops++;
+    await commitIfNeeded();
+
+    batch.set(doc(db, 'feed', authorId, 'items', postRef.id), {
+      postId: postRef.id,
+      authorId,
+      createdAt,
+    });
+    ops++;
+    await commitIfNeeded();
+  }
+
+  if (ops > 0) await batch.commit();
+}
+
 /**
- * Seeds rich demo content for the signed-in user (papers, logs, graph, feed posts, jobs)
- * so Phases 1–4 can be reviewed in one account. Safe to run multiple times (adds more docs).
+ * Seeds sample content for the signed-in user (papers, logs, graph, a few posts, jobs)
+ * and links to the Admin demo ecosystem when present.
  */
 export async function seedPlatformReviewForCurrentUser(
   db: Firestore,
   params: SeedReviewParams
-): Promise<void> {
+): Promise<{ followed: number; feedItems: number }> {
   const { uid, institutionId, institutionName, primaryLabId, labIds } = params;
 
   await setDoc(
@@ -133,19 +235,18 @@ export async function seedPlatformReviewForCurrentUser(
     await batch.commit();
   }
 
-  await seedDummyPostsForUser(db, {
+  await seedAccountPosts(db, {
     authorId: uid,
     institutionId,
     labId: primaryLabId,
-    feedUserIds: [uid],
   });
 
   await addDoc(collection(db, 'jobs'), {
     labId: null,
     postedByUserId: uid,
-    title: 'Demo: Postdoctoral Researcher — Computational Neuroscience',
+    title: 'Postdoctoral Researcher — Computational Neuroscience',
     description:
-      '**Staging copy only.**\n\n- Independent project design\n- Open science norms\n- Mentoring from senior grads\n\nApply via the link below (example).',
+      '**Staging copy only.**\n\n- Independent project design\n- Open science norms\n- Mentoring from senior grads',
     active: true,
     positionType: 'Postdoc',
     department: 'Demo Department',
@@ -166,9 +267,9 @@ export async function seedPlatformReviewForCurrentUser(
       await addDoc(collection(db, 'jobs'), {
         labId: candidateLab,
         postedByUserId: uid,
-        title: 'Demo: PhD student — ML for science',
+        title: 'PhD student — ML for science',
         description:
-          '**Lab-linked demo listing.**\n\nJoin our group working at the interface of ML and scientific discovery.',
+          '**Lab-linked listing.**\n\nJoin our group working at the interface of ML and scientific discovery.',
         active: true,
         positionType: 'PhD Position',
         department: 'Demo Lab',
@@ -182,4 +283,7 @@ export async function seedPlatformReviewForCurrentUser(
       });
     }
   }
+
+  const link = await linkCurrentUserToDemoEcosystem(db, uid);
+  return link;
 }

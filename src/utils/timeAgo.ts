@@ -26,3 +26,26 @@ export function addDaysIso(iso: string, delta: number): string {
   const t = Date.parse(`${iso}T12:00:00.000Z`) + delta * MS_DAY;
   return new Date(t).toISOString().slice(0, 10);
 }
+
+/** Monday–Friday in UTC for an ISO date (YYYY-MM-DD). */
+export function isWeekdayIso(iso: string): boolean {
+  const day = new Date(`${iso}T12:00:00.000Z`).getUTCDay();
+  return day >= 1 && day <= 5;
+}
+
+export function filterWeekdayDates(dates: readonly string[]): string[] {
+  return [...dates].filter(isWeekdayIso).sort();
+}
+
+/** Count Mon–Fri in a calendar year (260–262 depending on leap year). */
+export function weekdaysInYear(year: number): number {
+  let count = 0;
+  for (let month = 0; month < 12; month++) {
+    const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+    for (let day = 1; day <= daysInMonth; day++) {
+      const wd = new Date(Date.UTC(year, month, day)).getUTCDay();
+      if (wd >= 1 && wd <= 5) count++;
+    }
+  }
+  return count;
+}

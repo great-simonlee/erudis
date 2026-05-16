@@ -8,6 +8,8 @@ export type UserRole =
   | 'research_scientist'
   | 'industry_researcher'
   | 'institution_admin'
+  /** Non-academic members exploring research content. */
+  | 'general'
   /** Set during onboarding; not chosen at sign-up. */
   | 'pending';
 
@@ -18,6 +20,8 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  /** Set at registration when joining without an institutional email. */
+  signupIntent?: 'general' | null;
   institutionId: string | null;
   institutionName: string | null;
   labOnboardingIntent: 'join_lab' | 'create_lab' | 'defer' | null;
@@ -35,6 +39,10 @@ export interface User {
   avatarUrl: string;
   websiteUrl: string;
   profileViews: number;
+  /** Fruit ids from {@link LAB_NOTE_GLYPH_CATALOG} — up to 6 picks for the lab-note story grid. */
+  labNoteStoryGlyphs?: string[];
+  /** Fruit shape target: apple | orange | watermelon */
+  labNoteStoryPortrait?: string;
   createdAt: Timestamp | null;
 }
 
@@ -183,6 +191,8 @@ export interface ResearchLog {
   content: string;
   isPublic: boolean;
   tags: string[];
+  /** Which fruit mark filled this day on the lab-note story grid. */
+  storyGlyphId?: string;
   createdAt: Timestamp | null;
 }
 

@@ -1,17 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  limit,
-  orderBy,
-  query,
-  updateDoc,
-  where,
-} from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db, firebaseReady } from '../../lib/firebase';
+import { coffeeChatFromDoc, loadCoffeeChatsForUser } from '../../lib/coffeeChats';
 import { ROUTES } from '../../constants';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../contexts/ToastContext';
@@ -26,6 +17,7 @@ export function MessagesPage() {
   const { showToast } = useToast();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
+  const loadErrorShown = useRef(false);
 
   const load = useCallback(async () => {
     if (!user?.uid || !firebaseReady || !db) {
@@ -35,31 +27,19 @@ export function MessagesPage() {
     }
     setLoading(true);
     try {
-      const base = collection(db, 'coffee_chats');
-      const [inSnap, outSnap] = await Promise.all([
-        getDocs(query(base, where('toUserId', '==', user.uid), orderBy('createdAt', 'desc'), limit(40))),
-        getDocs(query(base, where('fromUserId', '==', user.uid), orderBy('createdAt', 'desc'), limit(40))),
-      ]);
+      const fs = db;
+      const docs = await loadCoffeeChatsForUser(fs, user.uid);
       const map = new Map<string, Row>();
       const peerIds = new Set<string>();
 
-      for (const d of inSnap.docs) {
-        const data = d.data() as Omit<CoffeeChat, 'id'>;
-        peerIds.add(data.fromUserId);
-        map.set(d.id, {
-          id: d.id,
-          ...data,
-          direction: 'in',
-        });
-      }
-      for (const d of outSnap.docs) {
+      for (const d of docs) {
+        const data = coffeeChatFromDoc(d);
+        const direction: 'in' | 'out' = data.toUserId === user.uid ? 'in' : 'out';
         if (map.has(d.id)) continue;
-        const data = d.data() as Omit<CoffeeChat, 'id'>;
-        peerIds.add(data.toUserId);
+        peerIds.add(direction === 'in' ? data.fromUserId : data.toUserId);
         map.set(d.id, {
-          id: d.id,
           ...data,
-          direction: 'out',
+          direction,
         });
       }
 
@@ -80,9 +60,18 @@ export function MessagesPage() {
         (a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0)
       );
       setRows(merged);
-    } catch {
+      loadErrorShown.current = false;
+    } catch (err) {
       setRows([]);
-      showToast('Could not load coffee chat requests.', 'error');
+      if (!loadErrorShown.current) {
+        loadErrorShown.current = true;
+        const msg = err instanceof Error ? err.message : '';
+        if (msg.includes('index')) {
+          showToast('Coffee chats need a Firestore index — run npm run deploy:indexes.', 'error');
+        } else {
+          showToast('Could not load coffee chat requests.', 'error');
+        }
+      }
     } finally {
       setLoading(false);
     }

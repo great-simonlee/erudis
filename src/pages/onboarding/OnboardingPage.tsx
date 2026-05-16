@@ -27,7 +27,9 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Label } from '../../components/ui/Label';
 import { TextArea } from '../../components/ui/TextArea';
+import { emailVerificationBlocksAccess } from '../../utils/authFlow';
 import { isOnboardingComplete } from '../../utils/onboardingGate';
+import { isGeneralMemberRole } from '../../utils/userRole';
 import type { Lab, UserRole } from '../../types';
 
 const TOTAL_STEPS = 5;
@@ -36,12 +38,18 @@ const MAX_RESEARCH_AREAS = 5;
 const ONBOARDING_ROLE_OPTIONS: {
   id: Exclude<UserRole, 'pending' | 'institution_admin' | 'researcher'>;
   label: string;
+  hint?: string;
 }[] = [
   { id: 'professor', label: 'Professor / PI' },
   { id: 'phd', label: 'PhD Candidate' },
   { id: 'postdoc', label: 'Postdoctoral Researcher' },
   { id: 'research_scientist', label: 'Research Scientist' },
   { id: 'industry_researcher', label: 'Industry Researcher' },
+  {
+    id: 'general',
+    label: 'General member',
+    hint: 'Explore research without an academic affiliation',
+  },
 ];
 
 function filterResearchFields(
@@ -86,6 +94,7 @@ export function OnboardingPage() {
     name: string;
   } | null>(null);
   const [customInstitution, setCustomInstitution] = useState('');
+  const [skipInstitution, setSkipInstitution] = useState(false);
 
   const [labIntent, setLabIntent] = useState<
     'join_lab' | 'create_lab' | 'defer' | null
@@ -111,7 +120,7 @@ export function OnboardingPage() {
 
   useEffect(() => {
     if (loading || profileLoading || !user) return;
-    if (!user.emailVerified) {
+    if (emailVerificationBlocksAccess(user.emailVerified)) {
       navigate(ROUTES.verifyEmail, { replace: true });
       return;
     }
@@ -119,6 +128,13 @@ export function OnboardingPage() {
       navigate(ROUTES.feed, { replace: true });
     }
   }, [loading, profileLoading, user, profile, navigate]);
+
+  useEffect(() => {
+    if (profile?.signupIntent !== 'general') return;
+    setRole('general');
+    setSkipInstitution(true);
+    setLabIntent('defer');
+  }, [profile?.signupIntent]);
 
   useEffect(() => {
     if (step !== 3 || labIntent !== 'join_lab' || labQuery.trim().length < 2 || !db) {
@@ -164,6 +180,7 @@ export function OnboardingPage() {
   );
 
   const isProfessor = role === 'professor';
+  const isGeneral = isGeneralMemberRole(role);
 
   function toggleArea(a: string) {
     setAreas((prev) => {
@@ -187,6 +204,9 @@ export function OnboardingPage() {
   }
 
   function resolveInstitution(): { id: string | null; name: string } | null {
+    if (isGeneral && skipInstitution) {
+      return { id: null, name: '' };
+    }
     if (institutionNotListed) {
       const n = customInstitution.trim();
       if (n.length < 2) return null;
@@ -210,7 +230,11 @@ export function OnboardingPage() {
     }
     const inst = resolveInstitution();
     if (!inst) {
-      setError('Select your institution or enter it if it is not listed.');
+      setError(
+        isGeneral
+          ? 'Select your institution, enter it manually, or check “not affiliated”.'
+          : 'Select your institution or enter it if it is not listed.'
+      );
       return;
     }
     if (!labIntent) {
@@ -262,7 +286,8 @@ export function OnboardingPage() {
         researchAreas: areas,
         role,
         institutionId: inst.id,
-        institutionName: inst.name,
+        institutionName: inst.name.trim() || null,
+        signupIntent: null,
         labOnboardingIntent: labIntent,
         labIds: selectedLab ? [selectedLab.id] : [],
         primaryLabId: selectedLab ? selectedLab.id : null,
@@ -303,10 +328,14 @@ export function OnboardingPage() {
 
         {step === 1 && (
           <div className="mt-8">
-            <h1 className="font-display text-2xl text-fg">Your research areas</h1>
+            <h1 className="font-display text-2xl text-fg">
+              {profile?.signupIntent === 'general'
+                ? 'Topics you follow'
+                : 'Your research areas'}
+            </h1>
             <p className="mt-2 text-sm text-fg-muted">
               Search the catalog and pick up to {MAX_RESEARCH_AREAS} areas that
-              match your work (at least one).
+              interest you (at least one).
             </p>
 
             <div className="mt-5">
@@ -426,10 +455,28 @@ export function OnboardingPage() {
                       name="onboard-role"
                       value={opt.id}
                       checked={role === opt.id}
-                      onChange={() => setRole(opt.id)}
+                      onChange={() => {
+                        const next = opt.id;
+                        setRole(next);
+                        if (next === 'general') {
+                          setSkipInstitution(true);
+                          setLabIntent('defer');
+                          setSelectedLab(null);
+                          setOnboardingCreatedLab(null);
+                        } else {
+                          setSkipInstitution(false);
+                        }
+                      }}
                       className="h-4 w-4 border-border text-brand focus:ring-brand"
                     />
-                    <span className="text-sm text-fg-soft">{opt.label}</span>
+                    <span className="text-sm text-fg-soft">
+                      {opt.label}
+                      {opt.hint && (
+                        <span className="mt-0.5 block text-xs text-fg-subtle">
+                          {opt.hint}
+                        </span>
+                      )}
+                    </span>
                   </label>
                 ))}
               </div>
@@ -438,15 +485,40 @@ export function OnboardingPage() {
             <div className="mt-8">
               <Label htmlFor="inst-search">Institution</Label>
               <p className="mt-1 text-xs text-fg-subtle">
-                Search the directory. If your school is missing, use the option
-                below.
+                {isGeneral
+                  ? 'Optional — skip if you are not affiliated with a school or lab.'
+                  : 'Search the directory. If your school is missing, use the option below.'}
               </p>
+              {isGeneral && (
+                <label className="mt-3 flex cursor-pointer items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={skipInstitution}
+                    onChange={(e) => {
+                      const on = e.target.checked;
+                      setSkipInstitution(on);
+                      if (on) {
+                        setInstitutionNotListed(false);
+                        setInstitutionPick(null);
+                        setInstitutionSearch('');
+                        setCustomInstitution('');
+                      }
+                    }}
+                    className="mt-1 h-4 w-4 rounded border-border text-brand focus:ring-brand"
+                  />
+                  <span className="text-sm text-fg-muted">
+                    I&apos;m not affiliated with an institution
+                  </span>
+                </label>
+              )}
               <div className="relative mt-1.5">
                 <Input
                   id="inst-search"
                   type="search"
                   autoComplete="off"
-                  disabled={institutionNotListed}
+                  disabled={
+                    institutionNotListed || (isGeneral && skipInstitution)
+                  }
                   value={institutionSearch}
                   onChange={(e) => {
                     setInstitutionSearch(e.target.value);
@@ -494,28 +566,53 @@ export function OnboardingPage() {
               </div>
             </div>
 
-            <label className="mt-4 flex cursor-pointer items-start gap-3">
-              <input
-                type="checkbox"
-                checked={institutionNotListed}
-                onChange={(e) => {
-                  const on = e.target.checked;
-                  setInstitutionNotListed(on);
-                  if (on) {
-                    setInstitutionPick(null);
-                    setInstitutionSearch('');
-                  } else {
-                    setCustomInstitution('');
-                  }
-                }}
-                className="mt-1 h-4 w-4 rounded border-border text-brand focus:ring-brand"
-              />
-              <span className="text-sm text-fg-muted">
-                My institution isn&apos;t listed — I&apos;ll type it manually
-              </span>
-            </label>
+            {!isGeneral && (
+              <label className="mt-4 flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={institutionNotListed}
+                  onChange={(e) => {
+                    const on = e.target.checked;
+                    setInstitutionNotListed(on);
+                    if (on) {
+                      setInstitutionPick(null);
+                      setInstitutionSearch('');
+                    } else {
+                      setCustomInstitution('');
+                    }
+                  }}
+                  className="mt-1 h-4 w-4 rounded border-border text-brand focus:ring-brand"
+                />
+                <span className="text-sm text-fg-muted">
+                  My institution isn&apos;t listed — I&apos;ll type it manually
+                </span>
+              </label>
+            )}
 
-            {institutionNotListed && (
+            {isGeneral && !skipInstitution && (
+              <label className="mt-4 flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={institutionNotListed}
+                  onChange={(e) => {
+                    const on = e.target.checked;
+                    setInstitutionNotListed(on);
+                    if (on) {
+                      setInstitutionPick(null);
+                      setInstitutionSearch('');
+                    } else {
+                      setCustomInstitution('');
+                    }
+                  }}
+                  className="mt-1 h-4 w-4 rounded border-border text-brand focus:ring-brand"
+                />
+                <span className="text-sm text-fg-muted">
+                  My institution isn&apos;t listed — I&apos;ll type it manually
+                </span>
+              </label>
+            )}
+
+            {institutionNotListed && !(isGeneral && skipInstitution) && (
               <div className="mt-3">
                 <Label htmlFor="inst-custom">Institution name</Label>
                 <Input
@@ -543,11 +640,17 @@ export function OnboardingPage() {
                   const inst = resolveInstitution();
                   if (!inst) {
                     setError(
-                      institutionNotListed
-                        ? 'Enter your institution name (at least 2 characters).'
-                        : 'Pick an institution from the list, or mark it as not listed.'
+                      isGeneral
+                        ? 'Select your institution, enter it manually, or check “not affiliated”.'
+                        : institutionNotListed
+                          ? 'Enter your institution name (at least 2 characters).'
+                          : 'Pick an institution from the list, or mark it as not listed.'
                     );
                     return;
+                  }
+                  if (isGeneral) {
+                    setLabIntent('defer');
+                    setSelectedLab(null);
                   }
                   setError(null);
                   setStep(3);
@@ -562,10 +665,19 @@ export function OnboardingPage() {
         {step === 3 && (
           <div className="mt-8">
             <h1 className="font-display text-2xl text-fg">Lab affiliation</h1>
-            <p className="mt-2 text-sm text-fg-muted">
-              THE ERUDIS is built around labs. Tell us how you want to connect.
-            </p>
+            {isGeneral ? (
+              <p className="mt-2 text-sm text-fg-muted">
+                Lab membership is optional for general members. You can join or
+                follow labs anytime from Discover.
+              </p>
+            ) : (
+              <p className="mt-2 text-sm text-fg-muted">
+                THE ERUDIS is built around labs. Tell us how you want to connect.
+              </p>
+            )}
 
+            {!isGeneral && (
+            <>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <Button
                 type="button"
@@ -707,6 +819,8 @@ export function OnboardingPage() {
                 </ul>
               </div>
             )}
+            </>
+            )}
 
             <div className="mt-8 flex gap-3">
               <Button type="button" variant="outline" onClick={() => setStep(2)}>
@@ -718,6 +832,12 @@ export function OnboardingPage() {
                 disabled={creatingLab}
                 onClick={() => {
                   void (async () => {
+                    if (isGeneral) {
+                      setLabIntent('defer');
+                      setError(null);
+                      setStep(4);
+                      return;
+                    }
                     if (!labIntent) {
                       setError('Choose one of the options above.');
                       return;
@@ -806,10 +926,19 @@ export function OnboardingPage() {
           <div className="mt-8">
             <h1 className="font-display text-2xl text-fg">What are you open to?</h1>
             <p className="mt-2 text-sm text-fg-muted leading-relaxed">
-              This helps the right people find you —
-              <br />
-              collaborators, hiring committees, and fellow researchers. Choose all
-              that apply.
+              {isGeneral ? (
+                <>
+                  Optional — tell us what you are curious about. Choose all that
+                  apply, or pick &quot;Nothing for now&quot;.
+                </>
+              ) : (
+                <>
+                  This helps the right people find you —
+                  <br />
+                  collaborators, hiring committees, and fellow researchers. Choose
+                  all that apply.
+                </>
+              )}
             </p>
             <div className="mt-6 space-y-2">
               {OPEN_TO_WORK_OPTIONS.map((opt) => (

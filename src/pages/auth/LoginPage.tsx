@@ -6,6 +6,7 @@ import { FirebaseNotice } from '../../components/shared/FirebaseNotice';
 import { ROUTES } from '../../constants';
 import { mapAuthError } from '../../utils/authErrors';
 import { institutionalToAuthEmail } from '../../utils/verificationInbox';
+import { emailVerificationBlocksAccess } from '../../utils/authFlow';
 import { isOnboardingComplete } from '../../utils/onboardingGate';
 import { useAuth } from '../../hooks/useAuth';
 import { Button } from '../../components/ui/Button';
@@ -16,7 +17,7 @@ function nextPath(
   emailVerified: boolean,
   profile: import('../../types').User | null | undefined
 ): string {
-  if (!emailVerified) return ROUTES.verifyEmail;
+  if (emailVerificationBlocksAccess(emailVerified)) return ROUTES.verifyEmail;
   if (!isOnboardingComplete(profile ?? null)) return ROUTES.onboarding;
   return ROUTES.feed;
 }
@@ -53,11 +54,7 @@ export function LoginPage() {
         password
       );
       await cred.user.reload();
-      if (!cred.user.emailVerified) {
-        navigate(ROUTES.verifyEmail, { replace: true });
-      } else {
-        navigate(ROUTES.feed, { replace: true });
-      }
+      navigate(nextPath(cred.user.emailVerified, profile ?? null), { replace: true });
     } catch (err) {
       setError(mapAuthError(err));
     } finally {

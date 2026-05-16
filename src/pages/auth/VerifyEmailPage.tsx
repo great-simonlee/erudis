@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState, type SVGProps } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { sendEmailVerification, signOut } from 'firebase/auth';
-import { useCentralVerificationInbox } from '../../config/flags';
+import { requireEmailVerification, useCentralVerificationInbox } from '../../config/flags';
+import { emailVerificationBlocksAccess } from '../../utils/authFlow';
+import { isOnboardingComplete } from '../../utils/onboardingGate';
 import { ROUTES } from '../../constants';
 import { useAuth } from '../../hooks/useAuth';
 import { Button } from '../../components/ui/Button';
@@ -62,10 +64,20 @@ export function VerifyEmailPage() {
 
   useEffect(() => {
     if (loading || !user) return;
-    if (user.emailVerified) {
-      navigate(ROUTES.feed, { replace: true });
+    if (!requireEmailVerification) {
+      navigate(
+        isOnboardingComplete(profile) ? ROUTES.feed : ROUTES.onboarding,
+        { replace: true }
+      );
+      return;
     }
-  }, [loading, user, navigate]);
+    if (!emailVerificationBlocksAccess(user.emailVerified)) {
+      navigate(
+        isOnboardingComplete(profile) ? ROUTES.feed : ROUTES.onboarding,
+        { replace: true }
+      );
+    }
+  }, [loading, user, profile, navigate]);
 
   useEffect(() => {
     if (!user || user.emailVerified) return;

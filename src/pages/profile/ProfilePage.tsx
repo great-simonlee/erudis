@@ -15,6 +15,7 @@ import {
   setDoc,
   where,
 } from 'firebase/firestore';
+import { resolveFruitShapeId } from '../../constants/labNotePortraits';
 import { db, firebaseReady } from '../../lib/firebase';
 import { ROUTES } from '../../constants';
 import { useAuth } from '../../hooks/useAuth';
@@ -78,68 +79,95 @@ export function ProfilePage() {
       setLoading(false);
       return;
     }
+    const viewerIsProfileOwner = user?.uid === uid;
     setLoading(true);
     try {
       const uSnap = await getDoc(doc(db, 'users', uid));
       if (!uSnap.exists()) {
         setProfileUser(null);
-        setLoading(false);
         return;
       }
       const u = { uid: uSnap.id, ...(uSnap.data() as Omit<User, 'uid'>) } as User;
       setProfileUser(u);
 
-      const gSnap = await getDoc(doc(db, 'research_graph', uid));
-      setGraph(
-        gSnap.exists()
-          ? ({ ...(gSnap.data() as Omit<ResearchGraph, never>) } as ResearchGraph)
-          : {
-              loggedDates: [],
-              currentStreak: 0,
-              longestStreak: 0,
-              totalLogDays: 0,
-              last30DayCount: 0,
-              updatedAt: null,
-            }
-      );
-
-      const logQ = query(
-        collection(db, 'research_logs'),
-        where('userId', '==', uid),
-        orderBy('createdAt', 'desc'),
-        limit(5)
-      );
-      const logSnap = await getDocs(logQ);
-      setLogs(
-        logSnap.docs.map((d) => ({
-          id: d.id,
-          ...(d.data() as Omit<ResearchLog, 'id'>),
-        }))
-      );
-
-      const postQ = query(
-        collection(db, 'posts'),
-        where('authorId', '==', uid),
-        orderBy('createdAt', 'desc'),
-        limit(6)
-      );
-      const postSnap = await getDocs(postQ);
-      setPosts(postSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Post, 'id'>) })));
-
-      let sum = 0;
-      postSnap.docs.forEach((d) => {
-        const p = d.data() as Post;
-        sum += p.resonateCount ?? 0;
-      });
-      setResonatesReceived(sum);
-
-      const paperQ = query(
-        collection(db, 'papers'),
-        where('addedBy', '==', uid),
-        orderBy('createdAt', 'desc'),
-        limit(12)
-      );
       try {
+        const gSnap = await getDoc(doc(db, 'research_graph', uid));
+        setGraph(
+          gSnap.exists()
+            ? ({ ...(gSnap.data() as Omit<ResearchGraph, never>) } as ResearchGraph)
+            : {
+                loggedDates: [],
+                currentStreak: 0,
+                longestStreak: 0,
+                totalLogDays: 0,
+                last30DayCount: 0,
+                updatedAt: null,
+              }
+        );
+      } catch {
+        setGraph({
+          loggedDates: [],
+          currentStreak: 0,
+          longestStreak: 0,
+          totalLogDays: 0,
+          last30DayCount: 0,
+          updatedAt: null,
+        });
+      }
+
+      try {
+        const logQ = viewerIsProfileOwner
+          ? query(
+              collection(db, 'research_logs'),
+              where('userId', '==', uid),
+              orderBy('createdAt', 'desc'),
+              limit(5)
+            )
+          : query(
+              collection(db, 'research_logs'),
+              where('userId', '==', uid),
+              where('isPublic', '==', true),
+              orderBy('createdAt', 'desc'),
+              limit(5)
+            );
+        const logSnap = await getDocs(logQ);
+        setLogs(
+          logSnap.docs.map((d) => ({
+            id: d.id,
+            ...(d.data() as Omit<ResearchLog, 'id'>),
+          }))
+        );
+      } catch {
+        setLogs([]);
+      }
+
+      try {
+        const postQ = query(
+          collection(db, 'posts'),
+          where('authorId', '==', uid),
+          orderBy('createdAt', 'desc'),
+          limit(6)
+        );
+        const postSnap = await getDocs(postQ);
+        setPosts(postSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Post, 'id'>) })));
+        let sum = 0;
+        postSnap.docs.forEach((d) => {
+          const p = d.data() as Post;
+          sum += p.resonateCount ?? 0;
+        });
+        setResonatesReceived(sum);
+      } catch {
+        setPosts([]);
+        setResonatesReceived(0);
+      }
+
+      try {
+        const paperQ = query(
+          collection(db, 'papers'),
+          where('addedBy', '==', uid),
+          orderBy('createdAt', 'desc'),
+          limit(12)
+        );
         const paperSnap = await getDocs(paperQ);
         setPapers(paperSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Paper, 'id'>) })));
       } catch {
@@ -148,27 +176,46 @@ export function ProfilePage() {
 
       const labList: Lab[] = [];
       for (const lid of u.labIds ?? []) {
-        const ls = await getDoc(doc(db, 'labs', lid));
-        if (ls.exists()) {
-          labList.push({ id: ls.id, ...(ls.data() as Omit<Lab, 'id'>) });
+        try {
+          const ls = await getDoc(doc(db, 'labs', lid));
+          if (ls.exists()) {
+            labList.push({ id: ls.id, ...(ls.data() as Omit<Lab, 'id'>) });
+          }
+        } catch {
+          /* skip missing lab */
         }
       }
       setLabs(labList);
 
-      const fc = await getCountFromServer(collection(db, 'users', uid, 'followers'));
-      const fg = await getCountFromServer(collection(db, 'users', uid, 'following'));
-      setFollowerCount(fc.data().count);
-      setFollowingCount(fg.data().count);
+      try {
+        const fc = await getCountFromServer(collection(db, 'users', uid, 'followers'));
+        const fg = await getCountFromServer(collection(db, 'users', uid, 'following'));
+        setFollowerCount(fc.data().count);
+        setFollowingCount(fg.data().count);
+      } catch {
+        setFollowerCount(0);
+        setFollowingCount(0);
+      }
 
       if (user?.uid && user.uid !== uid) {
-        setFollowing(await isFollowingUser(user.uid, uid));
+        try {
+          setFollowing(await isFollowingUser(user.uid, uid));
+        } catch {
+          setFollowing(false);
+        }
       } else {
         setFollowing(false);
       }
 
-      if (user?.uid && uid && user.uid === uid) {
-        const vc = await getCountFromServer(collection(db, 'profile_visits', uid, 'visitors'));
-        setVisitorCount(vc.data().count);
+      if (viewerIsProfileOwner) {
+        try {
+          const vc = await getCountFromServer(
+            collection(db, 'profile_visits', uid, 'visitors')
+          );
+          setVisitorCount(vc.data().count);
+        } catch {
+          setVisitorCount(0);
+        }
         try {
           const vq = query(
             collection(db, 'profile_visits', uid, 'visitors'),
@@ -288,6 +335,8 @@ export function ProfilePage() {
       last30DayCount: g.last30DayCount ?? 0,
     };
   }, [graph]);
+
+  const storyFruitShapeId = resolveFruitShapeId(profileUser?.labNoteStoryPortrait);
 
   const viewedIsPro =
     profileUser?.subscription === 'pro' ||
@@ -509,6 +558,8 @@ export function ProfilePage() {
 
       <ResearchActivityGraph
         loggedDates={graphStats.loggedDates}
+        fruitShapeId={storyFruitShapeId}
+        showFruitSettingsLink={Boolean(isSelf)}
         currentStreak={graphStats.currentStreak}
         longestStreak={graphStats.longestStreak}
         totalLogDays={graphStats.totalLogDays}

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { useDemoEcosystemBootstrap } from '../../hooks/useDemoEcosystemBootstrap';
 import { ResearchLogModal } from '../profile/ResearchLogModal';
 import { LeftSidebar } from './LeftSidebar';
 import { RightSidebar } from './RightSidebar';
@@ -8,7 +9,8 @@ import { Navbar } from './Navbar';
 import { MobileTabBar } from './MobileTabBar';
 
 export function MainLayout() {
-  const { user } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
+  useDemoEcosystemBootstrap(user?.uid);
   const [logOpen, setLogOpen] = useState(false);
 
   return (
@@ -30,7 +32,11 @@ export function MainLayout() {
             open={logOpen}
             onClose={() => setLogOpen(false)}
             userId={user.uid}
-            onSaved={() => setLogOpen(false)}
+            fruitShapeId={profile?.labNoteStoryPortrait}
+            onSaved={() => {
+              void refreshProfile();
+              setLogOpen(false);
+            }}
           />
           <button
             type="button"

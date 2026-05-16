@@ -1,7 +1,21 @@
+import { useEffect, useState } from 'react';
+import { doc, updateDoc } from 'firebase/firestore';
+import { Link } from 'react-router-dom';
 import { useTheme, type ThemePreference } from '../../contexts/ThemeContext';
 import { ThemeToggle } from '../../components/shared/ThemeToggle';
+import { LabNoteFruitShapePicker } from '../../components/profile/LabNoteFruitShapePicker';
+import { Button } from '../../components/ui/Button';
+import { ROUTES } from '../../constants';
+import {
+  LAB_NOTE_FRUIT_SHAPES,
+  resolveFruitShapeId,
+  type LabNoteFruitShapeId,
+} from '../../constants/labNotePortraits';
+import { useAuth } from '../../hooks/useAuth';
+import { useToast } from '../../contexts/ToastContext';
+import { db, firebaseReady } from '../../lib/firebase';
 
-const OPTIONS: { value: ThemePreference; label: string; hint: string }[] = [
+const THEME_OPTIONS: { value: ThemePreference; label: string; hint: string }[] = [
   { value: 'system', label: 'System', hint: 'Match device light or dark mode.' },
   { value: 'light', label: 'Light', hint: 'Always use light theme.' },
   { value: 'dark', label: 'Dark', hint: 'Always use dark theme.' },
@@ -9,6 +23,34 @@ const OPTIONS: { value: ThemePreference; label: string; hint: string }[] = [
 
 export function SettingsPage() {
   const { preference, setPreference } = useTheme();
+  const { user, profile } = useAuth();
+  const { showToast } = useToast();
+
+  const savedShape = resolveFruitShapeId(profile?.labNoteStoryPortrait);
+  const [draftShape, setDraftShape] = useState<LabNoteFruitShapeId>(savedShape);
+  const [savingFruit, setSavingFruit] = useState(false);
+
+  useEffect(() => {
+    setDraftShape(savedShape);
+  }, [savedShape]);
+
+  const fruitDirty = draftShape !== savedShape;
+  const activeSaved = LAB_NOTE_FRUIT_SHAPES.find((f) => f.id === savedShape);
+
+  const saveFruitShape = async () => {
+    if (!user?.uid || !db || !firebaseReady) return;
+    setSavingFruit(true);
+    try {
+      await updateDoc(doc(db, 'users', user.uid), {
+        labNoteStoryPortrait: draftShape,
+      });
+      showToast('Lab-note story fruit saved.', 'success');
+    } catch {
+      showToast('Could not save fruit choice.', 'error');
+    } finally {
+      setSavingFruit(false);
+    }
+  };
 
   return (
     <div>
@@ -19,11 +61,56 @@ export function SettingsPage() {
 
       <section className="mt-10 rounded-card border border-border bg-surface-card p-6">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-fg-subtle">
+          Lab-note story
+        </h2>
+        <p className="mt-2 text-sm text-fg-muted">
+          Pick one pixel fruit for your profile grid. Weekday lab notes paint it in — this
+          is a one-time setup, not something you switch on the profile page.
+        </p>
+        {activeSaved && (
+          <p className="mt-2 text-sm text-fg">
+            Current: {activeSaved.emoji} {activeSaved.name}
+          </p>
+        )}
+
+        <div className="mt-6">
+          <LabNoteFruitShapePicker
+            value={draftShape}
+            onChange={setDraftShape}
+            disabled={savingFruit}
+          />
+        </div>
+
+        <div className="mt-6 flex flex-wrap items-center gap-3">
+          <Button
+            type="button"
+            disabled={!fruitDirty || savingFruit}
+            onClick={() => void saveFruitShape()}
+          >
+            {savingFruit ? 'Saving…' : 'Save fruit'}
+          </Button>
+          {fruitDirty && (
+            <button
+              type="button"
+              className="text-sm text-fg-muted hover:text-fg"
+              onClick={() => setDraftShape(savedShape)}
+            >
+              Reset
+            </button>
+          )}
+          <Link to={ROUTES.profile(user?.uid ?? '')} className="text-sm text-brand hover:underline">
+            View on profile
+          </Link>
+        </div>
+      </section>
+
+      <section className="mt-8 rounded-card border border-border bg-surface-card p-6">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-fg-subtle">
           Appearance
         </h2>
         <p className="mt-2 text-sm text-fg-muted">
-          Choose how THE ERUDIS looks on this device. You can still use the quick
-          toggle in the sidebar or mobile header.
+          Choose how THE ERUDIS looks on this device. You can still use the quick toggle in
+          the sidebar or mobile header.
         </p>
 
         <div className="mt-6 flex flex-wrap items-center gap-4">
@@ -32,7 +119,7 @@ export function SettingsPage() {
 
         <fieldset className="mt-8 space-y-3">
           <legend className="sr-only">Theme preference</legend>
-          {OPTIONS.map((opt) => (
+          {THEME_OPTIONS.map((opt) => (
             <label
               key={opt.value}
               className={`flex cursor-pointer gap-3 rounded-card border px-4 py-3 transition-colors ${

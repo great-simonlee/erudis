@@ -17,6 +17,12 @@ export const demoUserId = 'demo';
 export const useCentralVerificationInbox = true;
 
 /**
+ * When true, users must verify email (Firebase link) before onboarding / app.
+ * Set to false while building a custom verification-code flow.
+ */
+export const requireEmailVerification = false;
+
+/**
  * Domains allowed as “institutional” email in addition to academic TLDs
  * (`.edu`, `.ac.*`, etc.). Use for staging / demo accounts.
  */

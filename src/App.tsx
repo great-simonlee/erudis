@@ -16,6 +16,7 @@ import { FeedPage } from './pages/feed/FeedPage';
 import { DiscoverPage } from './pages/discover/DiscoverPage';
 import { BriefPage } from './pages/discover/BriefPage';
 import { LabsPage } from './pages/lab/LabsPage';
+import { LabExplorePage } from './pages/lab/LabExplorePage';
 import { LabCreatePage } from './pages/lab/LabCreatePage';
 import { LabProfilePage } from './pages/lab/LabProfilePage';
 import { LabSettingsPage } from './pages/lab/LabSettingsPage';
@@ -46,6 +47,7 @@ export default function App() {
                 <Route path={ROUTES.feed} element={<FeedPage />} />
                 <Route path={ROUTES.discover} element={<DiscoverPage />} />
                 <Route path={ROUTES.brief} element={<BriefPage />} />
+                <Route path={ROUTES.labExplore} element={<LabExplorePage />} />
                 <Route path={ROUTES.labs} element={<LabsPage />} />
                 <Route path={ROUTES.labCreate} element={<LabCreatePage />} />
                 <Route path="/lab/:labId/settings" element={<LabSettingsPage />} />
@@ -78,6 +80,7 @@ export default function App() {
                       <Route path={ROUTES.feed} element={<FeedPage />} />
                       <Route path={ROUTES.discover} element={<DiscoverPage />} />
                       <Route path={ROUTES.brief} element={<BriefPage />} />
+                      <Route path={ROUTES.labExplore} element={<LabExplorePage />} />
                       <Route path={ROUTES.labs} element={<LabsPage />} />
                       <Route path={ROUTES.labCreate} element={<LabCreatePage />} />
                       <Route path="/lab/:labId/settings" element={<LabSettingsPage />} />

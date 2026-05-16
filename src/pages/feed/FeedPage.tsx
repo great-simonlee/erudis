@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
-import { skipFirebase, enableDummyFeedSeed } from '../../config/flags';
+import { skipFirebase } from '../../config/flags';
 import { useAuth } from '../../hooks/useAuth';
+import { DEMO_FEED_REFRESH_EVENT } from '../../hooks/useDemoEcosystemBootstrap';
 import { useFeedItems } from '../../hooks/useFeedItems';
 import { db, firebaseReady } from '../../lib/firebase';
-import { DUMMY_POST_COUNT, seedDummyPostsForUser } from '../../dev/seedDummyFeedData';
-import { seedPlatformReviewForCurrentUser } from '../../dev/seedPlatformReviewData';
-import { useToast } from '../../contexts/ToastContext';
 import { FirebaseNotice } from '../../components/shared/FirebaseNotice';
 import { FeedComposerBar } from '../../components/feed/FeedComposerBar';
 import { PostComposerModal } from '../../components/feed/PostComposerModal';
@@ -15,10 +13,7 @@ import type { Lab } from '../../types';
 
 export function FeedPage() {
   const { user, profile } = useAuth();
-  const { showToast } = useToast();
   const [composerOpen, setComposerOpen] = useState(false);
-  const [seeding, setSeeding] = useState(false);
-  const [fullSeeding, setFullSeeding] = useState(false);
   const [memberLabs, setMemberLabs] = useState<{ id: string; name: string }[]>([]);
   const { rows, loading, loadingMore, error, hasMore, loadMore, refresh } = useFeedItems(
     user?.uid
@@ -46,6 +41,12 @@ export function FeedPage() {
       cancelled = true;
     };
   }, [profile?.labIds]);
+
+  useEffect(() => {
+    const onBootstrap = () => refresh();
+    window.addEventListener(DEMO_FEED_REFRESH_EVENT, onBootstrap);
+    return () => window.removeEventListener(DEMO_FEED_REFRESH_EVENT, onBootstrap);
+  }, [refresh]);
 
   useEffect(() => {
     const el = sentinelRef.current;
@@ -81,74 +82,6 @@ export function FeedPage() {
       <p className="mt-2 text-sm text-fg-muted">
         Updates from people you follow and your own posts.
       </p>
-
-      {enableDummyFeedSeed && user && profile && firebaseReady && db && (
-        <div className="mt-4 rounded-card border border-dashed border-amber-500/40 bg-amber-950/20 px-4 py-3 text-xs text-fg-muted">
-          <p className="font-medium text-amber-200/90">Demo data</p>
-          <p className="mt-1">
-            Adds {DUMMY_POST_COUNT} sample posts authored as you and wires them into{' '}
-            <code className="text-fg-soft">feed/{'{yourUid}'}/items</code>. Safe to run more than
-            once (duplicates are allowed).
-          </p>
-          <button
-            type="button"
-            disabled={seeding}
-            onClick={() => {
-              void (async () => {
-                const fsDb = db;
-                if (!fsDb) return;
-                setSeeding(true);
-                try {
-                  await seedDummyPostsForUser(fsDb, {
-                    authorId: user.uid,
-                    institutionId: profile.institutionId,
-                    labId: profile.primaryLabId,
-                    feedUserIds: [user.uid],
-                  });
-                  showToast(`Added ${DUMMY_POST_COUNT} sample posts.`, 'success');
-                  refresh();
-                } catch {
-                  showToast('Could not seed data. Check Firestore rules and network.', 'error');
-                } finally {
-                  setSeeding(false);
-                }
-              })();
-            }}
-            className="mt-2 rounded-card border border-amber-500/50 bg-amber-900/40 px-3 py-1.5 text-xs font-medium text-amber-100 hover:bg-amber-900/60 disabled:opacity-50"
-          >
-            {seeding ? 'Seeding…' : `Load sample posts (${DUMMY_POST_COUNT})`}
-          </button>
-          <button
-            type="button"
-            disabled={fullSeeding}
-            onClick={() => {
-              void (async () => {
-                const fsDb = db;
-                if (!fsDb || !user || !profile) return;
-                setFullSeeding(true);
-                try {
-                  await seedPlatformReviewForCurrentUser(fsDb, {
-                    uid: user.uid,
-                    institutionId: profile.institutionId,
-                    institutionName: profile.institutionName,
-                    primaryLabId: profile.primaryLabId,
-                    labIds: profile.labIds ?? [],
-                  });
-                  showToast('Full review dataset added (posts, papers, logs, graph, jobs).', 'success');
-                  refresh();
-                } catch {
-                  showToast('Full seed failed. Check rules and console.', 'error');
-                } finally {
-                  setFullSeeding(false);
-                }
-              })();
-            }}
-            className="mt-2 block w-full rounded-card border border-amber-500/40 bg-amber-950/30 px-3 py-1.5 text-xs font-medium text-amber-50 hover:bg-amber-950/50 disabled:opacity-50"
-          >
-            {fullSeeding ? 'Seeding…' : 'Load full Phase 1–4 review dataset (this account)'}
-          </button>
-        </div>
-      )}
 
       {user && profile && (
         <>

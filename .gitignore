@@ -26,3 +26,8 @@ yarn-error.log*
 
 # Local Firestore rules reference (not committed)
 FIRESTORE_RULES.md
+
+# Firebase Admin SDK keys (npm run seed:firestore)
+/secrets/
+*-firebase-adminsdk*.json
+*service*account*.json

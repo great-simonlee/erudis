@@ -1,6 +1,7 @@
 import { Navigate } from 'react-router-dom';
 import { ROUTES } from '../../constants';
 import { useAuth } from '../../hooks/useAuth';
+import { emailVerificationBlocksAccess } from '../../utils/authFlow';
 import { isOnboardingComplete } from '../../utils/onboardingGate';
 
 /** Sends signed-in users to the right step (verify → onboarding → feed). */
@@ -19,7 +20,7 @@ export function HomeRedirect() {
     return <Navigate to={ROUTES.login} replace />;
   }
 
-  if (!user.emailVerified) {
+  if (emailVerificationBlocksAccess(user.emailVerified)) {
     return <Navigate to={ROUTES.verifyEmail} replace />;
   }
 

@@ -6,6 +6,7 @@ import {
   serverTimestamp,
   type Firestore,
 } from 'firebase/firestore';
+import { resolveFruitShapeId } from '../constants/labNotePortraits';
 import { calculateStreak } from '../utils/researchStreak';
 import type { ResearchGraph, ResearchLogType } from '../types';
 
@@ -13,6 +14,8 @@ export type NewResearchLogInput = {
   userId: string;
   date: string;
   type: ResearchLogType;
+  /** Which fruit shape grid this note contributes to. */
+  fruitShapeId?: string;
   title: string;
   content: string;
   isPublic: boolean;
@@ -23,10 +26,14 @@ export async function submitResearchLog(
   db: Firestore,
   input: NewResearchLogInput
 ): Promise<string> {
+  const storyGlyphId = resolveFruitShapeId(input.fruitShapeId);
+  const gref = doc(db, 'research_graph', input.userId);
+
   const created = await addDoc(collection(db, 'research_logs'), {
     userId: input.userId,
     date: input.date,
     type: input.type,
+    storyGlyphId,
     title: input.title.trim(),
     content: input.content.trim(),
     isPublic: input.isPublic,
@@ -35,7 +42,6 @@ export async function submitResearchLog(
   });
 
   await runTransaction(db, async (tx) => {
-    const gref = doc(db, 'research_graph', input.userId);
     const g = await tx.get(gref);
     const prev: string[] = g.exists()
       ? ((g.data() as ResearchGraph).loggedDates ?? [])

@@ -22,10 +22,17 @@ type ResearchLogModalProps = {
   open: boolean;
   onClose: () => void;
   userId: string;
+  fruitShapeId?: string;
   onSaved: () => void;
 };
 
-export function ResearchLogModal({ open, onClose, userId, onSaved }: ResearchLogModalProps) {
+export function ResearchLogModal({
+  open,
+  onClose,
+  userId,
+  fruitShapeId,
+  onSaved,
+}: ResearchLogModalProps) {
   const { showToast } = useToast();
   const [date, setDate] = useState(() => utcIsoDate());
   const [type, setType] = useState<ResearchLogType>('experiment');
@@ -64,6 +71,7 @@ export function ResearchLogModal({ open, onClose, userId, onSaved }: ResearchLog
         userId,
         date,
         type,
+        fruitShapeId,
         title: title.trim(),
         content: content.trim(),
         isPublic,

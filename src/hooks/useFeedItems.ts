@@ -11,6 +11,7 @@ import {
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { db, firebaseReady } from '../lib/firebase';
+import { getPostIfAllowed } from '../lib/firestoreAccess';
 import type { FeedItem, Lab, Post, User } from '../types';
 
 export type FeedRow = {
@@ -31,9 +32,8 @@ async function resolveFeedDocs(
     const data = fd.data() as FeedItem;
     const postId = data.postId;
     if (!postId) continue;
-    const postSnap = await getDoc(doc(fs, 'posts', postId));
-    if (!postSnap.exists()) continue;
-    const post = { id: postSnap.id, ...(postSnap.data() as Omit<Post, 'id'>) };
+    const post = await getPostIfAllowed(fs, postId);
+    if (!post) continue;
     const authorSnap = await getDoc(doc(fs, 'users', post.authorId));
     const author = authorSnap.exists()
       ? ({ uid: authorSnap.id, ...(authorSnap.data() as Omit<User, 'uid'>) } as User)

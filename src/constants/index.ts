@@ -14,6 +14,7 @@ export const ROUTES = {
   feed: '/feed',
   discover: '/discover',
   labs: '/labs',
+  labExplore: '/labs/explore',
   papers: '/papers',
   jobs: '/jobs',
   messages: '/messages',

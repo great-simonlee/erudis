@@ -26,7 +26,8 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "seed:firestore": "node scripts/seedFirestoreDemo.cjs"
+    "seed:firestore": "node scripts/seedFirestoreDemo.cjs",
+    "deploy:indexes": "firebase deploy --only firestore:indexes"
   },
   "eslintConfig": {
     "extends": [

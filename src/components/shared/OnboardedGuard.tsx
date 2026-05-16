@@ -1,6 +1,7 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { ROUTES } from '../../constants';
 import { useAuth } from '../../hooks/useAuth';
+import { emailVerificationBlocksAccess } from '../../utils/authFlow';
 import { isOnboardingComplete } from '../../utils/onboardingGate';
 
 /** Main app routes: verified email and finished onboarding. */
@@ -20,7 +21,7 @@ export function OnboardedGuard() {
     return <Navigate to={ROUTES.login} replace state={{ from: location }} />;
   }
 
-  if (!user.emailVerified) {
+  if (emailVerificationBlocksAccess(user.emailVerified)) {
     return <Navigate to={ROUTES.verifyEmail} replace />;
   }
 

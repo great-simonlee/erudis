@@ -2,8 +2,8 @@ import { NavLink } from 'react-router-dom';
 import { ROUTES } from '../../constants';
 import { useAuth } from '../../hooks/useAuth';
 import { roleLabel } from '../../utils/roleLabels';
+import { ErudisLogo } from '../brand/ErudisLogo';
 import { ThemeToggle } from '../shared/ThemeToggle';
-import { NotificationBell } from './NotificationBell';
 
 function IconHome(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -22,6 +22,17 @@ function IconCompass(props: React.SVGProps<SVGSVGElement>) {
       <path
         fill="currentColor"
         d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2m1 5-4 7 2 2 7-4-7-2-2-7 4Z"
+      />
+    </svg>
+  );
+}
+
+function IconSearch(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden {...props}>
+      <path
+        fill="currentColor"
+        d="M10.5 3a7.5 7.5 0 015.77 12.247l4.553 4.553-1.414 1.414-4.553-4.553A7.5 7.5 0 1110.5 3m0 2a5.5 5.5 0 100 11 5.5 5.5 0 000-11"
       />
     </svg>
   );
@@ -105,14 +116,8 @@ export function LeftSidebar() {
 
   return (
     <aside className="hidden h-full min-h-0 w-[240px] shrink-0 flex-col overflow-y-auto border-r border-border bg-surface md:flex">
-      <div className="flex items-start justify-between gap-2 border-b border-border px-4 py-5">
-        <NavLink
-          to={ROUTES.feed}
-          className="font-display text-lg tracking-tight text-fg"
-        >
-          THE ERUDIS
-        </NavLink>
-        <NotificationBell uid={user?.uid} />
+      <div className="border-b border-border px-4 py-4">
+        <ErudisLogo variant="sidebar" />
       </div>
 
       <nav className="flex flex-1 flex-col gap-0.5 px-2 py-4" aria-label="Main">
@@ -122,13 +127,16 @@ export function LeftSidebar() {
         <NavLink to={ROUTES.discover} className={navClass}>
           <IconCompass /> Discover
         </NavLink>
-        <NavLink to={ROUTES.labs} className={navClass}>
+        <NavLink to={ROUTES.labExplore} className={navClass}>
+          <IconSearch /> Find labs
+        </NavLink>
+        <NavLink to={ROUTES.labs} className={navClass} end>
           <IconFlask /> My Labs
         </NavLink>
         <NavLink to={ROUTES.papers} className={navClass}>
           <IconDoc /> Papers
         </NavLink>
-        <NavLink to={ROUTES.jobs} className={navClass}>
+        <NavLink to={ROUTES.jobs} className={navClass} end>
           <IconBriefcase /> Jobs
         </NavLink>
         <NavLink to={ROUTES.messages} className={navClass}>

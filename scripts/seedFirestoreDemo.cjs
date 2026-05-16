@@ -1,143 +1,275 @@
 /**
- * Optional multi-user Firestore seed (Admin SDK, CommonJS).
+ * Multi-user Firestore demo ecosystem (Admin SDK).
  *
- *   export GOOGLE_APPLICATION_CREDENTIALS=/path/to/serviceAccount.json
+ * Auth option A (no JSON key — use when org policy blocks key download):
+ *   gcloud auth application-default login
+ *   gcloud config set project erudis-47097
+ *   unset GOOGLE_APPLICATION_CREDENTIALS
+ *   npm run seed:firestore
+ *
+ * Auth option B (service account JSON file):
+ *   export GOOGLE_APPLICATION_CREDENTIALS="$PWD/secrets/erudis-firebase-admin.json"
  *   npm run seed:firestore
  */
 
-const { readFileSync } = require('fs');
+const { existsSync, readFileSync } = require('fs');
+const { resolve } = require('path');
 const admin = require('firebase-admin');
 
-async function main() {
+const PROJECT_ID =
+  process.env.GCLOUD_PROJECT ||
+  process.env.GOOGLE_CLOUD_PROJECT ||
+  'erudis-47097';
+const {
+  USERS,
+  LABS,
+  POSTS,
+  JOBS,
+  PAPERS,
+  RESEARCH_LOGS,
+  RESEARCH_GRAPHS,
+  COFFEE_CHATS,
+} = require('./seedFirestoreDemoData.cjs');
+
+function explainCredentialsHelp(reason) {
+  console.error(`
+${reason}
+
+── Option A: gcloud login (no service account JSON) ──
+If your org blocks key creation (iam.disableServiceAccountKeyCreation), use this:
+
+  gcloud auth application-default login
+  gcloud config set project ${PROJECT_ID}
+  unset GOOGLE_APPLICATION_CREDENTIALS
+  npm run seed:firestore
+
+You need Firestore write access on project ${PROJECT_ID} (e.g. Owner, Editor, or Firebase Admin).
+
+── Option B: service account JSON file ──
+Only if your org allows downloading keys:
+
+  export GOOGLE_APPLICATION_CREDENTIALS="$PWD/secrets/erudis-firebase-admin.json"
+  npm run seed:firestore
+`);
+}
+
+function initFirebaseAdmin() {
+  if (admin.apps.length) return;
+
   const keyPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-  if (!keyPath) {
-    console.error('Set GOOGLE_APPLICATION_CREDENTIALS to a service account JSON path.');
+  if (keyPath) {
+    const resolved = resolve(keyPath);
+    if (existsSync(resolved)) {
+      const cred = JSON.parse(readFileSync(resolved, 'utf8'));
+      admin.initializeApp({
+        credential: admin.credential.cert(cred),
+        projectId: cred.project_id || PROJECT_ID,
+      });
+      console.log(`Using service account key: ${resolved}`);
+      return;
+    }
+    console.warn(`GOOGLE_APPLICATION_CREDENTIALS set but file missing: ${resolved}`);
+    console.warn('Falling back to Application Default Credentials (gcloud login)…\n');
+  }
+
+  try {
+    admin.initializeApp({
+      credential: admin.credential.applicationDefault(),
+      projectId: PROJECT_ID,
+    });
+    console.log(`Using Application Default Credentials (project: ${PROJECT_ID})`);
+  } catch (e) {
+    explainCredentialsHelp(
+      `Could not authenticate: ${e instanceof Error ? e.message : String(e)}`
+    );
     process.exit(1);
   }
+}
 
-  const cred = JSON.parse(readFileSync(keyPath, 'utf8'));
-  if (!admin.apps.length) {
-    admin.initializeApp({ credential: admin.credential.cert(cred) });
-  }
+async function main() {
+  initFirebaseAdmin();
   const db = admin.firestore();
-
-  const UIDS = ['erudis_seed_alpha', 'erudis_seed_beta', 'erudis_seed_gamma'];
   const now = admin.firestore.FieldValue.serverTimestamp();
+  const baseMs = Date.now();
 
-  const users = [
-    {
-      uid: UIDS[0],
-      name: 'Dr. Alex Rivera',
-      email: 'alex.rivera.seed@example.edu',
-      role: 'professor',
-      institutionId: 'custom:demo-university',
-      institutionName: 'Demo University',
-      labOnboardingIntent: 'defer',
-      labIds: [],
-      primaryLabId: null,
-      researchAreas: ['Computer Science', 'AI/ML'],
-      following: [UIDS[1], UIDS[2]],
-      followers: [UIDS[1]],
-      isVerified: true,
-      openToCollaborate: true,
-      collaborationTypes: [],
-      openToWork: ['faculty_positions', 'postdoc_positions'],
-      subscription: 'pro',
-      bio: 'Demo PI profile for staging review.',
-      avatarUrl: '',
-      websiteUrl: '',
-      profileViews: 0,
-      createdAt: now,
-    },
-    {
-      uid: UIDS[1],
-      name: 'Jordan Kim',
-      email: 'jordan.kim.seed@example.edu',
-      role: 'phd',
-      institutionId: 'custom:demo-university',
-      institutionName: 'Demo University',
-      labOnboardingIntent: 'join_lab',
-      labIds: [],
-      primaryLabId: null,
-      researchAreas: ['Neuroscience'],
-      following: [UIDS[0]],
-      followers: [UIDS[0], UIDS[2]],
-      isVerified: true,
-      openToCollaborate: true,
-      collaborationTypes: [],
-      openToWork: ['postdoc_positions', 'industry'],
-      subscription: 'free',
-      bio: 'Demo PhD student profile.',
-      avatarUrl: '',
-      websiteUrl: '',
-      profileViews: 0,
-      createdAt: now,
-    },
-    {
-      uid: UIDS[2],
-      name: 'Sam Okonkwo',
-      email: 'sam.okonkwo.seed@example.edu',
-      role: 'institution_admin',
-      institutionId: 'custom:demo-university',
-      institutionName: 'Demo University HR',
-      labOnboardingIntent: 'defer',
-      labIds: [],
-      primaryLabId: null,
-      researchAreas: ['Economics'],
-      following: [UIDS[0]],
-      followers: [],
-      isVerified: true,
-      openToCollaborate: false,
-      collaborationTypes: [],
-      openToWork: ['nothing_now'],
-      subscription: 'free',
-      bio: 'Demo institution HR viewer.',
-      avatarUrl: '',
-      websiteUrl: '',
-      profileViews: 0,
-      createdAt: now,
-    },
-  ];
+  let batch = db.batch();
+  let ops = 0;
 
-  const batch = db.batch();
-  for (const u of users) {
+  const commitIfNeeded = async (force = false) => {
+    if (force || ops >= 400) {
+      if (ops > 0) await batch.commit();
+      batch = db.batch();
+      ops = 0;
+    }
+  };
+
+  for (const u of USERS) {
     const { uid, ...rest } = u;
-    batch.set(db.collection('users').doc(uid), rest, { merge: true });
+    batch.set(
+      db.collection('users').doc(uid),
+      {
+        ...rest,
+        isVerified: true,
+        openToCollaborate: rest.openToCollaborate ?? true,
+        collaborationTypes: rest.collaborationTypes ?? [],
+        avatarUrl: rest.avatarUrl ?? '',
+        websiteUrl: rest.websiteUrl ?? '',
+        profileViews: rest.profileViews ?? 0,
+        createdAt: now,
+      },
+      { merge: true }
+    );
+    ops++;
+    await commitIfNeeded();
   }
 
-  const labRef = db.collection('labs').doc('erudis_seed_lab');
-  batch.set(labRef, {
-    name: 'Demo Adaptive Systems Lab',
-    institutionId: 'custom:demo-university',
-    institutionName: 'Demo University',
-    department: 'Computer Science',
-    piId: UIDS[0],
-    memberIds: [UIDS[0], UIDS[1]],
-    researchAreas: ['AI/ML', 'Computer Science'],
-    description: 'Synthetic lab for UI review — collaboration and hiring demos.',
-    logoUrl: '',
-    requirePostApproval: false,
-    isLabPro: false,
-    followers: [],
-    createdAt: now,
-  });
-
-  await batch.commit();
-
-  await db.collection('users').doc(UIDS[0]).update({
-    labIds: ['erudis_seed_lab'],
-    primaryLabId: 'erudis_seed_lab',
-  });
-  await db.collection('users').doc(UIDS[1]).update({
-    labIds: ['erudis_seed_lab'],
-    primaryLabId: 'erudis_seed_lab',
-  });
-
-  console.log('Seed user profile paths (open in app while logged in):');
-  for (const id of UIDS) {
-    console.log(`  /profile/${id}`);
+  for (const lab of LABS) {
+    const { id, ...rest } = lab;
+    batch.set(db.collection('labs').doc(id), {
+      ...rest,
+      logoUrl: rest.logoUrl ?? '',
+      requirePostApproval: rest.requirePostApproval ?? false,
+      isLabPro: rest.isLabPro ?? false,
+      websiteUrl: rest.websiteUrl ?? '',
+      createdAt: now,
+    });
+    ops++;
+    await commitIfNeeded();
   }
-  console.log('Lab: /lab/erudis_seed_lab');
+
+  for (let i = 0; i < POSTS.length; i++) {
+    const spec = POSTS[i];
+    const { id, hoursAgo, visibility, ...fields } = spec;
+    const createdAt = admin.firestore.Timestamp.fromMillis(
+      baseMs - (hoursAgo ?? i + 1) * 3_600_000
+    );
+    batch.set(db.collection('posts').doc(id), {
+      ...fields,
+      attachments: [],
+      visibility: visibility ?? 'public',
+      isPendingApproval: false,
+      commentCount: 0,
+      createdAt,
+      updatedAt: createdAt,
+    });
+    ops++;
+    await commitIfNeeded();
+  }
+
+  for (const job of JOBS) {
+    const { id, ...rest } = job;
+    batch.set(db.collection('jobs').doc(id), {
+      ...rest,
+      active: true,
+      sponsored: rest.sponsored ?? false,
+      remote: rest.remote ?? false,
+      createdAt: now,
+    });
+    ops++;
+    await commitIfNeeded();
+  }
+
+  for (const paper of PAPERS) {
+    const { id, ...rest } = paper;
+    batch.set(db.collection('papers').doc(id), {
+      ...rest,
+      doi: rest.doi ?? null,
+      abstract: rest.abstract ?? 'Synthetic abstract for UI review only.',
+      url: rest.url ?? null,
+      arxivId: rest.arxivId ?? null,
+      createdAt: now,
+    });
+    ops++;
+    await commitIfNeeded();
+  }
+
+  for (const log of RESEARCH_LOGS) {
+    const ref = db.collection('research_logs').doc();
+    batch.set(ref, {
+      ...log,
+      createdAt: now,
+    });
+    ops++;
+    await commitIfNeeded();
+  }
+
+  for (const graph of RESEARCH_GRAPHS) {
+    batch.set(db.collection('research_graph').doc(graph.userId), {
+      loggedDates: graph.loggedDates,
+      currentStreak: graph.currentStreak,
+      longestStreak: graph.longestStreak,
+      totalLogDays: graph.totalLogDays,
+      last30DayCount: graph.last30DayCount,
+      updatedAt: now,
+    });
+    ops++;
+    await commitIfNeeded();
+  }
+
+  for (const chat of COFFEE_CHATS) {
+    const { id, hoursAgo, ...rest } = chat;
+    const createdAt = admin.firestore.Timestamp.fromMillis(
+      baseMs - (hoursAgo ?? 1) * 3_600_000
+    );
+    batch.set(db.collection('coffee_chats').doc(id), {
+      ...rest,
+      createdAt,
+    });
+    ops++;
+    await commitIfNeeded();
+  }
+
+  await commitIfNeeded(true);
+
+  const postsByAuthor = new Map();
+  for (const p of POSTS) {
+    if (!postsByAuthor.has(p.authorId)) postsByAuthor.set(p.authorId, []);
+    postsByAuthor.get(p.authorId).push(p);
+  }
+
+  batch = db.batch();
+  ops = 0;
+
+  for (const u of USERS) {
+    const following = u.following ?? [];
+    for (const post of POSTS) {
+      if (!following.includes(post.authorId)) continue;
+      const vis = post.visibility ?? 'public';
+      if (vis !== 'public') continue;
+      const createdAt = admin.firestore.Timestamp.fromMillis(
+        baseMs - (post.hoursAgo ?? 1) * 3_600_000
+      );
+      batch.set(db.collection('feed').doc(u.uid).collection('items').doc(post.id), {
+        postId: post.id,
+        authorId: post.authorId,
+        createdAt,
+      });
+      ops++;
+      if (ops >= 400) {
+        await batch.commit();
+        batch = db.batch();
+        ops = 0;
+      }
+    }
+  }
+
+  if (ops > 0) await batch.commit();
+
+  console.log('\nDemo ecosystem seeded.\n');
+  console.log('Schools (institutions): MIT, Stanford, Berkeley, Cambridge, Harvard');
+  console.log('\nProfiles:');
+  for (const u of USERS) {
+    console.log(`  /profile/${u.uid}  — ${u.name} (${u.role})`);
+  }
+  console.log('\nLabs:');
+  for (const lab of LABS) {
+    console.log(`  /lab/${lab.id}  — ${lab.name}`);
+  }
+  console.log('\nJobs: open /jobs and search by institution or title.');
+  console.log('Discover: public posts from demo authors.');
+  console.log(
+    '\nIn the app (with REACT_APP_ENABLE_DUMMY_SEED), use “Load sample data” on Home to follow these personas and fill your feed.'
+  );
 }
 
 main().catch((e) => {

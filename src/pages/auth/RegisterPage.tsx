@@ -9,7 +9,8 @@ import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { auth, db, firebaseReady } from '../../lib/firebase';
 import { FirebaseNotice } from '../../components/shared/FirebaseNotice';
 import { ROUTES } from '../../constants';
-import { useCentralVerificationInbox } from '../../config/flags';
+import { requireEmailVerification, useCentralVerificationInbox } from '../../config/flags';
+import { emailVerificationBlocksAccess } from '../../utils/authFlow';
 import { isAcademicEmail } from '../../utils/academicEmail';
 import { mapAuthError } from '../../utils/authErrors';
 import {
@@ -40,6 +41,10 @@ function passwordValid(pw: string): boolean {
   return r.lower && r.upper && r.digit && r.special && r.lengthOver10;
 }
 
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+}
+
 export function RegisterPage() {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
@@ -49,8 +54,14 @@ export function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [joinAsGeneral, setJoinAsGeneral] = useState(false);
 
   const academic = email.trim() ? isAcademicEmail(email.trim()) : null;
+  const emailOk = email.trim()
+    ? joinAsGeneral
+      ? isValidEmail(email.trim())
+      : academic === true
+    : null;
   const pwReq = passwordRequirements(password);
   const pwOk = password ? passwordValid(password) : null;
   const passwordsMatch =
@@ -59,7 +70,7 @@ export function RegisterPage() {
   const canSubmit =
     name.trim() &&
     email.trim() &&
-    academic === true &&
+    emailOk === true &&
     password &&
     pwOk === true &&
     passwordsMatch &&
@@ -92,12 +103,15 @@ export function RegisterPage() {
         password
       );
       await updateProfile(cred.user, { displayName: name.trim() });
-      await sendEmailVerification(cred.user);
+      if (requireEmailVerification) {
+        await sendEmailVerification(cred.user);
+      }
       await setDoc(doc(dbSvc, 'users', cred.user.uid), {
         uid: cred.user.uid,
         name: name.trim(),
         email: institutional,
         role: 'pending',
+        signupIntent: joinAsGeneral ? 'general' : null,
         institutionId: null,
         labIds: [],
         primaryLabId: null,
@@ -117,10 +131,14 @@ export function RegisterPage() {
         profileViews: 0,
         createdAt: serverTimestamp(),
       });
-      navigate(ROUTES.verifyEmail, {
-        replace: true,
-        state: { institutionalEmail: institutional },
-      });
+      if (emailVerificationBlocksAccess(cred.user.emailVerified)) {
+        navigate(ROUTES.verifyEmail, {
+          replace: true,
+          state: { institutionalEmail: institutional },
+        });
+      } else {
+        navigate('/', { replace: true });
+      }
     } catch (err) {
       if (process.env.NODE_ENV === 'development') {
         // eslint-disable-next-line no-console -- surfaced for local debugging when mapAuthError is generic
@@ -138,9 +156,35 @@ export function RegisterPage() {
         <FirebaseNotice />
         <h1 className="font-display text-2xl text-fg">Join THE ERUDIS</h1>
         <p className="mt-2 text-sm text-fg-muted">
-          Verified academic network for professors, PhDs, postdocs, and
-          researchers.
+          {joinAsGeneral
+            ? 'Follow research, labs, and papers with any email address.'
+            : 'Verified academic network for professors, PhDs, postdocs, and researchers.'}
         </p>
+
+        <div className="mt-6 flex rounded-lg border border-border p-1">
+          <button
+            type="button"
+            className={`flex-1 rounded-md px-3 py-2 text-sm transition-colors ${
+              !joinAsGeneral
+                ? 'bg-brand/15 font-medium text-fg'
+                : 'text-fg-muted hover:text-fg-soft'
+            }`}
+            onClick={() => setJoinAsGeneral(false)}
+          >
+            Academic
+          </button>
+          <button
+            type="button"
+            className={`flex-1 rounded-md px-3 py-2 text-sm transition-colors ${
+              joinAsGeneral
+                ? 'bg-brand/15 font-medium text-fg'
+                : 'text-fg-muted hover:text-fg-soft'
+            }`}
+            onClick={() => setJoinAsGeneral(true)}
+          >
+            General member
+          </button>
+        </div>
 
         <form className="mt-8 space-y-5" onSubmit={onSubmit} noValidate>
           <div>
@@ -156,7 +200,9 @@ export function RegisterPage() {
           </div>
 
           <div>
-            <Label htmlFor="email">Institutional email</Label>
+            <Label htmlFor="email">
+              {joinAsGeneral ? 'Email' : 'Institutional email'}
+            </Label>
             <Input
               id="email"
               name="email"
@@ -166,7 +212,12 @@ export function RegisterPage() {
               onChange={(ev) => setEmail(ev.target.value)}
               required
             />
-            {email.trim() && academic === true && (
+            {email.trim() && emailOk === true && joinAsGeneral && (
+              <p className="mt-1.5 flex items-center gap-1.5 text-xs text-brand">
+                <span aria-hidden>✓</span> Email format looks good
+              </p>
+            )}
+            {email.trim() && emailOk === true && !joinAsGeneral && (
               <>
                 <p className="mt-1.5 flex items-center gap-1.5 text-xs text-brand">
                   <span aria-hidden>✓</span> Institutional email recognized
@@ -182,10 +233,11 @@ export function RegisterPage() {
                 )}
               </>
             )}
-            {email.trim() && academic === false && (
+            {email.trim() && emailOk === false && (
               <p className="mt-1.5 text-xs text-red-400" role="alert">
-                Please use your institutional email (.edu, .ac.kr, .ac.uk, .ac.jp,
-                .edu.au, etc.)
+                {joinAsGeneral
+                  ? 'Enter a valid email address.'
+                  : 'Please use your institutional email (.edu, .ac.kr, .ac.uk, .ac.jp, .edu.au, etc.)'}
               </p>
             )}
           </div>
