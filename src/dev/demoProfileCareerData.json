@@ -1,0 +1,90 @@
+{
+  "erudis_demo_prof_rivera": {
+    "educations": [
+      {
+        "id": "demo-edu-rivera-stanford",
+        "school": "Stanford University",
+        "degree": "Ph.D.",
+        "field": "Computer Science",
+        "startYear": 2008,
+        "endYear": 2013,
+        "ongoing": false,
+        "description": "Dissertation on certified robustness under covariate shift (demo)."
+      },
+      {
+        "id": "demo-edu-rivera-mit-undergrad",
+        "school": "Massachusetts Institute of Technology",
+        "degree": "S.B.",
+        "field": "Electrical Engineering and Computer Science",
+        "startYear": 2004,
+        "endYear": 2008,
+        "ongoing": false,
+        "description": "Undergraduate thesis on adaptive control (demo)."
+      }
+    ],
+    "workExperiences": [
+      {
+        "id": "demo-work-rivera-postdoc",
+        "title": "Postdoctoral Fellow",
+        "organization": "MIT CSAIL",
+        "location": "Cambridge, MA",
+        "startYear": 2013,
+        "endYear": 2016,
+        "ongoing": false,
+        "description": "Adaptive systems and distributionally robust learning."
+      },
+      {
+        "id": "demo-work-rivera-faculty",
+        "title": "Professor",
+        "organization": "Massachusetts Institute of Technology",
+        "location": "Cambridge, MA",
+        "startYear": 2016,
+        "endYear": null,
+        "ongoing": true,
+        "description": "PI, Rivera Lab — trustworthy ML and adaptive systems."
+      }
+    ],
+    "researchLogs": [
+      {
+        "date": "2026-01-22",
+        "type": "experiment",
+        "title": "Robustness eval suite — covariate shift",
+        "content": "Ran certified robustness benchmarks on the new validation splits. Sharing configs with the lab for replication.",
+        "isPublic": true,
+        "tags": ["robustness", "ml"]
+      },
+      {
+        "date": "2026-01-18",
+        "type": "writing",
+        "title": "Grant narrative — adaptive systems thrust",
+        "content": "Drafted aims for the cross-department initiative on adaptive ML in scientific workflows.",
+        "isPublic": true,
+        "tags": ["grants", "writing"]
+      },
+      {
+        "date": "2026-01-14",
+        "type": "idea",
+        "title": "Lab wiki — hardware profile standard",
+        "content": "Proposal: every benchmark figure lists GPU model, driver, and batch size in a shared template.",
+        "isPublic": true,
+        "tags": ["lab", "methods"]
+      },
+      {
+        "date": "2026-01-10",
+        "type": "other",
+        "title": "Thesis committee — Jordan Kim",
+        "content": "Discussed chapter outline and evaluation plan for the spring defense window.",
+        "isPublic": true,
+        "tags": ["mentoring"]
+      },
+      {
+        "date": "2026-01-06",
+        "type": "result",
+        "title": "Pilot ablation — graph-biased attention",
+        "content": "Early signal that graph bias helps on noisy validation; keeping notes private until co-author review.",
+        "isPublic": false,
+        "tags": ["hypothesis"]
+      }
+    ]
+  }
+}

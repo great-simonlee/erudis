@@ -23,13 +23,41 @@ import { useToast } from '../../contexts/ToastContext';
 import { PostCard } from '../../components/feed/PostCard';
 import { EditableProfileBanner } from '../../components/profile/EditableProfileBanner';
 import { ResearchActivityGraph } from '../../components/profile/ResearchActivityGraph';
+import {
+  ProfileSectionEmpty,
+  ProfileSectionPanel,
+} from '../../components/profile/ProfileSectionPanel';
 import { CoffeeChatModal } from '../../components/profile/CoffeeChatModal';
+import { EducationFormModal } from '../../components/profile/EducationFormModal';
+import { PaperFormModal } from '../../components/profile/PaperFormModal';
+import { ProfileSectionEditButton } from '../../components/profile/ProfileSectionEditButton';
+import { SchoolLogoPlaceholder } from '../../components/profile/SchoolLogoPlaceholder';
+import { WorkExperienceFormModal } from '../../components/profile/WorkExperienceFormModal';
+import { Button } from '../../components/ui/Button';
 import { notifyFollow } from '../../lib/notify';
 import { followUser, isFollowingUser, unfollowUser } from '../../utils/follow';
 import { roleLabel } from '../../utils/roleLabels';
 import { formatTimeAgo } from '../../utils/timeAgo';
 import type { FeedRow } from '../../hooks/useFeedItems';
-import type { Lab, Paper, Post, ProfileVisitorRow, ResearchGraph, ResearchLog, User } from '../../types';
+import { enableDummyFeedSeed } from '../../config/flags';
+import {
+  getDemoProfileEducations,
+  getDemoProfileResearchLogs,
+  getDemoProfileWorkExperiences,
+  isDemoProfileCareerUid,
+} from '../../dev/demoProfileCareerData';
+import { educationSubtitle, sortProfileCareer, workExperienceSubtitle } from '../../utils/profileCareer';
+import type {
+  Lab,
+  Paper,
+  Post,
+  ProfileEducation,
+  ProfileVisitorRow,
+  ProfileWorkExperience,
+  ResearchGraph,
+  ResearchLog,
+  User,
+} from '../../types';
 
 function logTypeClass(t: string): string {
   switch (t) {
@@ -63,10 +91,17 @@ export function ProfilePage() {
   const [followBusy, setFollowBusy] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
+  const [likesReceived, setLikesReceived] = useState(0);
   const [resonatesReceived, setResonatesReceived] = useState(0);
   const [visitorCount, setVisitorCount] = useState<number | null>(null);
   const [visitorRows, setVisitorRows] = useState<ProfileVisitorRow[]>([]);
   const [coffeeOpen, setCoffeeOpen] = useState(false);
+  const [educationModalOpen, setEducationModalOpen] = useState(false);
+  const [educationEditEntry, setEducationEditEntry] = useState<ProfileEducation | null>(null);
+  const [workModalOpen, setWorkModalOpen] = useState(false);
+  const [workEditEntry, setWorkEditEntry] = useState<ProfileWorkExperience | null>(null);
+  const [paperModalOpen, setPaperModalOpen] = useState(false);
+  const [paperEditEntry, setPaperEditEntry] = useState<Paper | null>(null);
 
   useEffect(() => {
     setProfileUser(null);
@@ -150,14 +185,18 @@ export function ProfilePage() {
         );
         const postSnap = await getDocs(postQ);
         setPosts(postSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Post, 'id'>) })));
-        let sum = 0;
+        let likeSum = 0;
+        let resonateSum = 0;
         postSnap.docs.forEach((d) => {
           const p = d.data() as Post;
-          sum += p.resonateCount ?? 0;
+          likeSum += p.likeCount ?? 0;
+          resonateSum += p.resonateCount ?? 0;
         });
-        setResonatesReceived(sum);
+        setLikesReceived(likeSum);
+        setResonatesReceived(resonateSum);
       } catch {
         setPosts([]);
+        setLikesReceived(0);
         setResonatesReceived(0);
       }
 
@@ -256,6 +295,22 @@ export function ProfilePage() {
     }
   }, [uid, user?.uid]);
 
+  const reloadPapers = useCallback(async () => {
+    if (!uid || !db || !firebaseReady) return;
+    try {
+      const paperQ = query(
+        collection(db, 'papers'),
+        where('addedBy', '==', uid),
+        orderBy('createdAt', 'desc'),
+        limit(12)
+      );
+      const paperSnap = await getDocs(paperQ);
+      setPapers(paperSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Paper, 'id'>) })));
+    } catch {
+      setPapers([]);
+    }
+  }, [uid]);
+
   useEffect(() => {
     void loadAll();
   }, [loadAll]);
@@ -336,6 +391,27 @@ export function ProfilePage() {
     };
   }, [graph]);
 
+  const useDemoCareerPreview =
+    enableDummyFeedSeed && Boolean(uid && isDemoProfileCareerUid(uid));
+
+  const educations = useMemo(() => {
+    const fromFirestore = sortProfileCareer(profileUser?.educations ?? []);
+    if (fromFirestore.length > 0 || !useDemoCareerPreview || !uid) return fromFirestore;
+    return sortProfileCareer(getDemoProfileEducations(uid));
+  }, [profileUser?.educations, uid, useDemoCareerPreview]);
+
+  const workExperiences = useMemo(() => {
+    const fromFirestore = sortProfileCareer(profileUser?.workExperiences ?? []);
+    if (fromFirestore.length > 0 || !useDemoCareerPreview || !uid) return fromFirestore;
+    return sortProfileCareer(getDemoProfileWorkExperiences(uid));
+  }, [profileUser?.workExperiences, uid, useDemoCareerPreview]);
+
+  const displayLogs = useMemo(() => {
+    if (logs.length > 0) return logs;
+    if (!useDemoCareerPreview || !uid) return [];
+    return getDemoProfileResearchLogs(uid, isSelf);
+  }, [logs, uid, useDemoCareerPreview, isSelf]);
+
   const storyFruitShapeId = resolveFruitShapeId(profileUser?.labNoteStoryPortrait);
 
   const viewedIsPro =
@@ -375,8 +451,14 @@ export function ProfilePage() {
     lab: post.labId ? labs.find((l) => l.id === post.labId) ?? null : null,
   }));
 
+  const sectionAddButton = (label: string, onClick: () => void) => (
+    <Button type="button" variant="outline" className="px-3 py-1.5 text-xs" onClick={onClick}>
+      {label}
+    </Button>
+  );
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <EditableProfileBanner
         profileUser={profileUser}
         isSelf={isSelf}
@@ -390,7 +472,8 @@ export function ProfilePage() {
         }
         stats={{
           papers: papers.length,
-          resonates: resonatesReceived,
+          likesReceived,
+          resonatesReceived,
           followers: followerCount,
           following: followingCount,
         }}
@@ -479,19 +562,26 @@ export function ProfilePage() {
         totalLogDays={graphStats.totalLogDays}
         last30DayCount={graphStats.last30DayCount}
       />
-      <p className="text-right text-xs">
-        <Link className="text-brand hover:underline" to={ROUTES.profileLogs(uid)}>
-          View all logs
-        </Link>
-      </p>
-
-      <section>
-        <h2 className="font-display text-lg text-fg">Recent research logs</h2>
-        <ul className="mt-3 space-y-3">
-          {logs.map((log) => (
+      <ProfileSectionPanel
+        eyebrow="Research ritual"
+        title="Recent research logs"
+        description={
+          isSelf
+            ? 'Your latest lab notes. Private entries appear here for you; others see public logs only.'
+            : 'Public lab notes from this researcher.'
+        }
+        headerAction={
+          <Link className="text-xs font-medium text-brand hover:underline" to={ROUTES.profileLogs(uid)}>
+            View all
+          </Link>
+        }
+      >
+        {displayLogs.length > 0 ? (
+          <ul className="space-y-3">
+          {displayLogs.map((log) => (
             <li
               key={log.id}
-              className="rounded-card border border-border bg-surface-card px-4 py-3 text-sm"
+              className="rounded-lg border border-border bg-surface-raised/50 px-4 py-3 text-sm"
             >
               <div className="flex flex-wrap items-center gap-2">
                 <span
@@ -506,63 +596,241 @@ export function ProfilePage() {
               <p className="mt-1 line-clamp-2 text-fg-muted">{log.content}</p>
             </li>
           ))}
-          {logs.length === 0 && (
-            <li className="text-sm text-fg-muted">No public logs yet.</li>
-          )}
-        </ul>
-      </section>
+          </ul>
+        ) : (
+          <ProfileSectionEmpty>No public logs yet.</ProfileSectionEmpty>
+        )}
+      </ProfileSectionPanel>
 
-      <section>
-        <h2 className="font-display text-lg text-fg">Papers</h2>
-        <ul className="mt-3 space-y-3">
-          {papers.map((p) => (
-            <li key={p.id} className="rounded-card border border-border bg-surface-card px-4 py-3 text-sm">
-              <p className="font-medium text-fg">{p.title}</p>
-              <p className="mt-1 text-xs text-fg-muted">
-                {p.venue ?? 'Venue TBD'} · {p.publicationYear ?? '—'} · Resonates {p.resonateCount ?? 0}
-              </p>
-              {p.arxivId && (
-                <a
-                  className="mt-2 inline-block text-xs text-brand hover:underline"
-                  href={`https://arxiv.org/abs/${p.arxivId}`}
-                  target="_blank"
-                  rel="noreferrer"
+      <ProfileSectionPanel
+        eyebrow="Background"
+        title="Educations"
+        description="Degrees and programs from this researcher’s academic path."
+        headerAction={
+          isSelf
+            ? sectionAddButton('Add', () => {
+                setEducationEditEntry(null);
+                setEducationModalOpen(true);
+              })
+            : undefined
+        }
+      >
+        {educations.length > 0 ? (
+          <ul className="space-y-3">
+            {educations.map((entry) => {
+              const subtitle = educationSubtitle(entry);
+              return (
+                <li
+                  key={entry.id}
+                  className="relative rounded-lg border border-border bg-surface-raised/50 p-3 pr-11 text-sm"
                 >
-                  View on arXiv
-                </a>
-              )}
-            </li>
-          ))}
-          {papers.length === 0 && <li className="text-sm text-fg-muted">No papers added yet.</li>}
-        </ul>
-      </section>
+                  {isSelf ? (
+                    <ProfileSectionEditButton
+                      label="Edit education"
+                      onEdit={() => {
+                        setEducationEditEntry(entry);
+                        setEducationModalOpen(true);
+                      }}
+                    />
+                  ) : null}
+                  <div className="flex gap-3">
+                    <SchoolLogoPlaceholder school={entry.school} logoUrl={entry.logoUrl} />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-fg">{entry.school}</p>
+                      {subtitle ? <p className="mt-1 text-xs text-fg-muted">{subtitle}</p> : null}
+                      {entry.description ? (
+                        <p className="mt-2 line-clamp-3 text-fg-muted">{entry.description}</p>
+                      ) : null}
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <ProfileSectionEmpty>
+            {isSelf ? 'No education added yet. Use Add to create one.' : 'No education listed.'}
+          </ProfileSectionEmpty>
+        )}
+      </ProfileSectionPanel>
 
-      <section>
-        <h2 className="font-display text-lg text-fg">Recent posts</h2>
-        <div className="mt-3 grid gap-4 sm:grid-cols-2">
-          {postRows.map((row) => (
-            <PostCard key={row.post.id} row={row} viewerUid={user?.uid} compact onChanged={loadAll} />
-          ))}
-        </div>
-        {posts.length === 0 && <p className="text-sm text-fg-muted">No posts yet.</p>}
-      </section>
+      <ProfileSectionPanel
+        eyebrow="Career"
+        title="Work experiences"
+        description="Roles and organizations across academia and industry."
+        headerAction={
+          isSelf
+            ? sectionAddButton('Add', () => {
+                setWorkEditEntry(null);
+                setWorkModalOpen(true);
+              })
+            : undefined
+        }
+      >
+        {workExperiences.length > 0 ? (
+          <ul className="space-y-3">
+            {workExperiences.map((entry) => {
+              const subtitle = workExperienceSubtitle(entry);
+              return (
+                <li
+                  key={entry.id}
+                  className="relative rounded-lg border border-border bg-surface-raised/50 px-4 py-3 pr-11 text-sm"
+                >
+                  {isSelf ? (
+                    <ProfileSectionEditButton
+                      label="Edit work experience"
+                      onEdit={() => {
+                        setWorkEditEntry(entry);
+                        setWorkModalOpen(true);
+                      }}
+                    />
+                  ) : null}
+                  <p className="font-medium text-fg">{entry.title}</p>
+                  {subtitle ? <p className="mt-1 text-xs text-fg-muted">{subtitle}</p> : null}
+                  {entry.description ? (
+                    <p className="mt-2 line-clamp-3 text-fg-muted">{entry.description}</p>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <ProfileSectionEmpty>
+            {isSelf
+              ? 'No work experience added yet. Use Add to create one.'
+              : 'No work experience listed.'}
+          </ProfileSectionEmpty>
+        )}
+      </ProfileSectionPanel>
 
-      <section>
-        <h2 className="font-display text-lg text-fg">Lab memberships</h2>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          {labs.map((lab) => (
-            <Link
-              key={lab.id}
-              to={ROUTES.lab(lab.id)}
-              className="rounded-card border border-border bg-surface-card p-4 text-sm transition-colors hover:border-brand/40"
-            >
-              <p className="font-medium text-fg">{lab.name}</p>
-              <p className="mt-1 text-xs text-fg-muted">{lab.description?.slice(0, 120) ?? 'Research lab'}</p>
-            </Link>
-          ))}
-        </div>
-        {labs.length === 0 && <p className="text-sm text-fg-muted">No labs linked.</p>}
-      </section>
+      <ProfileSectionPanel
+        eyebrow="Publications"
+        title="Papers"
+        description="Preprints and publications shared on the network."
+        headerAction={
+          isSelf
+            ? sectionAddButton('Add', () => {
+                setPaperEditEntry(null);
+                setPaperModalOpen(true);
+              })
+            : undefined
+        }
+      >
+        {papers.length > 0 ? (
+          <ul className="space-y-3">
+            {papers.map((p) => (
+              <li
+                key={p.id}
+                className="relative rounded-lg border border-border bg-surface-raised/50 px-4 py-3 pr-11 text-sm"
+              >
+                {isSelf ? (
+                  <ProfileSectionEditButton
+                    label="Edit paper"
+                    onEdit={() => {
+                      setPaperEditEntry(p);
+                      setPaperModalOpen(true);
+                    }}
+                  />
+                ) : null}
+                <p className="font-medium text-fg">{p.title}</p>
+                <p className="mt-1 text-xs text-fg-muted">
+                  {p.authors.join(', ')}
+                </p>
+                <p className="mt-1 text-xs text-fg-muted">
+                  {p.venue ?? 'Venue TBD'} · {p.publicationYear ?? '—'} · Resonates{' '}
+                  {p.resonateCount ?? 0}
+                </p>
+                {p.arxivId && (
+                  <a
+                    className="mt-2 inline-block text-xs text-brand hover:underline"
+                    href={`https://arxiv.org/abs/${p.arxivId}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    View on arXiv
+                  </a>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <ProfileSectionEmpty>
+            {isSelf ? 'No papers added yet. Use Add to publish one.' : 'No papers added yet.'}
+          </ProfileSectionEmpty>
+        )}
+      </ProfileSectionPanel>
+
+      <ProfileSectionPanel
+        eyebrow="Network"
+        title="Recent posts"
+        description="Updates, papers, and ideas published to followers."
+      >
+        {posts.length > 0 ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {postRows.map((row) => (
+              <PostCard key={row.post.id} row={row} viewerUid={user?.uid} compact onChanged={loadAll} />
+            ))}
+          </div>
+        ) : (
+          <ProfileSectionEmpty>No posts yet.</ProfileSectionEmpty>
+        )}
+      </ProfileSectionPanel>
+
+      <ProfileSectionPanel
+        eyebrow="Labs"
+        title="Lab memberships"
+        description="Research groups this scholar belongs to."
+      >
+        {labs.length > 0 ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {labs.map((lab) => (
+              <Link
+                key={lab.id}
+                to={ROUTES.lab(lab.id)}
+                className="rounded-lg border border-border bg-surface-raised/50 p-4 text-sm transition-colors hover:border-brand/40 hover:bg-surface-card"
+              >
+                <p className="font-medium text-fg">{lab.name}</p>
+                <p className="mt-1 text-xs text-fg-muted">
+                  {lab.description?.slice(0, 120) ?? 'Research lab'}
+                </p>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <ProfileSectionEmpty>No labs linked.</ProfileSectionEmpty>
+        )}
+      </ProfileSectionPanel>
+
+      {isSelf && uid && (
+        <>
+          <EducationFormModal
+            open={educationModalOpen}
+            entry={educationEditEntry}
+            educations={educations}
+            userId={uid}
+            onClose={() => setEducationModalOpen(false)}
+            onSaved={(next) => setProfileUser((u) => (u ? { ...u, educations: next } : u))}
+          />
+          <WorkExperienceFormModal
+            open={workModalOpen}
+            entry={workEditEntry}
+            workExperiences={workExperiences}
+            userId={uid}
+            onClose={() => setWorkModalOpen(false)}
+            onSaved={(next) =>
+              setProfileUser((u) => (u ? { ...u, workExperiences: next } : u))
+            }
+          />
+          <PaperFormModal
+            open={paperModalOpen}
+            paper={paperEditEntry}
+            userId={uid}
+            labId={profileUser.primaryLabId}
+            onClose={() => setPaperModalOpen(false)}
+            onSaved={() => void reloadPapers()}
+          />
+        </>
+      )}
 
       {!isSelf && user && uid && profileUser && (
         <CoffeeChatModal

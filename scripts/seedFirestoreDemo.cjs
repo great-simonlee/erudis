@@ -14,7 +14,25 @@
 
 const { existsSync, readFileSync } = require('fs');
 const { resolve } = require('path');
-const admin = require('firebase-admin');
+
+let admin;
+try {
+  admin = require('firebase-admin');
+} catch (e) {
+  if (e && typeof e === 'object' && 'code' in e && e.code === 'MODULE_NOT_FOUND') {
+    console.error(`
+Cannot find module "firebase-admin".
+
+From the project root, install dependencies first:
+
+  cd ${resolve(__dirname, '..')}
+  npm install
+  npm run seed:firestore
+`);
+    process.exit(1);
+  }
+  throw e;
+}
 
 const PROJECT_ID =
   process.env.GCLOUD_PROJECT ||
@@ -32,10 +50,38 @@ const {
   COFFEE_CHATS,
 } = require('./seedFirestoreDemoData.cjs');
 
-function explainCredentialsHelp(reason) {
+function isInvalidGrantError(err) {
+  const msg = err instanceof Error ? err.message : String(err);
+  const details = err && typeof err === 'object' && 'details' in err ? String(err.details) : '';
+  const combined = `${msg} ${details}`;
+  return (
+    combined.includes('invalid_grant') ||
+    combined.includes('invalid_rapt') ||
+    combined.includes('reauth related error')
+  );
+}
+
+function explainCredentialsHelp(reason, { invalidGrant = false } = {}) {
+  const reauthBlock = invalidGrant
+    ? `
+── Re-auth required (invalid_grant / invalid_rapt) ──
+Your Google Application Default Credentials expired or need a fresh login
+(common with Workspace accounts and advanced security).
+
+  gcloud auth application-default revoke
+  gcloud auth application-default login
+  gcloud config set project ${PROJECT_ID}
+  unset GOOGLE_APPLICATION_CREDENTIALS
+  npm run seed:firestore
+
+Complete the browser sign-in (including 2FA / re-auth if prompted).
+If ADC still fails, use a service account JSON (Option B below).
+`
+    : '';
+
   console.error(`
 ${reason}
-
+${reauthBlock}
 ── Option A: gcloud login (no service account JSON) ──
 If your org blocks key creation (iam.disableServiceAccountKeyCreation), use this:
 
@@ -164,6 +210,7 @@ async function main() {
       visibility: visibility ?? 'public',
       isPendingApproval: false,
       commentCount: 0,
+      likeCount: fields.likeCount ?? 0,
       createdAt,
       updatedAt: createdAt,
     });
@@ -290,6 +337,13 @@ async function main() {
 }
 
 main().catch((e) => {
-  console.error(e);
+  if (isInvalidGrantError(e)) {
+    explainCredentialsHelp(
+      'Firestore seed failed: Google credentials need to be refreshed.',
+      { invalidGrant: true }
+    );
+  } else {
+    console.error(e);
+  }
   process.exit(1);
 });

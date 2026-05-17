@@ -15,6 +15,31 @@ export type UserRole =
 
 export type SubscriptionTier = 'free' | 'pro' | 'pro_write' | 'lab_pro';
 
+export interface ProfileEducation {
+  id: string;
+  school: string;
+  /** Institution logo URL when available. */
+  logoUrl?: string | null;
+  degree?: string;
+  field?: string;
+  startYear?: number | null;
+  endYear?: number | null;
+  /** When true, endYear is treated as “Present”. */
+  ongoing?: boolean;
+  description?: string;
+}
+
+export interface ProfileWorkExperience {
+  id: string;
+  title: string;
+  organization: string;
+  location?: string;
+  startYear?: number | null;
+  endYear?: number | null;
+  ongoing?: boolean;
+  description?: string;
+}
+
 export interface User {
   uid: string;
   name: string;
@@ -45,6 +70,8 @@ export interface User {
   labNoteStoryGlyphs?: string[];
   /** Fruit shape target: apple | orange | watermelon */
   labNoteStoryPortrait?: string;
+  educations?: ProfileEducation[];
+  workExperiences?: ProfileWorkExperience[];
   createdAt: Timestamp | null;
 }
 
@@ -94,6 +121,7 @@ export interface LabInvite {
 }
 
 export type NotificationType =
+  | 'like'
   | 'resonate'
   | 'comment'
   | 'follow'
@@ -180,6 +208,9 @@ export interface Post {
   attachments: { url: string; type: string; name: string }[];
   tags: string[];
   researchArea: string;
+  /** Appreciation signals (no feed fan-out). */
+  likeCount?: number;
+  /** Amplification signals (fan-out to resonator's followers). */
   resonateCount: number;
   viewCount: number;
   commentCount: number;
@@ -245,6 +276,8 @@ export interface FeedItem {
   createdAt: Timestamp | null;
   /** When set, feed writes are allowed for lab followers or lab members (see Firestore rules). */
   sourceLabId?: string | null;
+  /** Set when a follower resonated the post into this feed (amplification). */
+  sourceResonatorId?: string | null;
 }
 
 /** Aggregated research activity for the contribution graph. */

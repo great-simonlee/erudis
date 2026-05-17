@@ -19,6 +19,16 @@ const POST_TYPES: { id: PostType; label: string }[] = [
   { id: 'question', label: 'Question' },
 ];
 
+const COMPOSER_HEADINGS: Partial<Record<PostType, string>> = {
+  update: 'Share an update',
+  paper: 'Share a paper',
+  idea: 'Share an idea',
+  result: 'Share a result',
+  question: 'Ask a question',
+  milestone: 'Share a milestone',
+  paper_review: 'Paper review',
+};
+
 type PostComposerModalProps = {
   open: boolean;
   onClose: () => void;
@@ -27,6 +37,7 @@ type PostComposerModalProps = {
   primaryLabId: string | null;
   memberLabs: { id: string; name: string }[];
   onPosted: () => void;
+  initialType?: PostType;
 };
 
 export function PostComposerModal({
@@ -37,6 +48,7 @@ export function PostComposerModal({
   primaryLabId,
   memberLabs,
   onPosted,
+  initialType,
 }: PostComposerModalProps) {
   const { showToast } = useToast();
   const [title, setTitle] = useState('');
@@ -51,10 +63,11 @@ export function PostComposerModal({
 
   useEffect(() => {
     if (!open) return;
+    if (initialType) setType(initialType);
     if (primaryLabId) setPostLabId(primaryLabId);
     else if (memberLabs.length === 1) setPostLabId(memberLabs[0].id);
     else setPostLabId(null);
-  }, [open, primaryLabId, memberLabs]);
+  }, [open, initialType, primaryLabId, memberLabs]);
 
   const labIdForPost = useMemo(() => {
     if (visibility !== 'members_only') return null;
@@ -117,7 +130,7 @@ export function PostComposerModal({
       <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-card border border-border bg-surface-card p-6 shadow-xl">
         <div className="flex items-start justify-between gap-4">
           <h2 id="composer-title" className="font-display text-xl text-fg">
-            New post
+            {COMPOSER_HEADINGS[type] ?? 'New post'}
           </h2>
           <button
             type="button"

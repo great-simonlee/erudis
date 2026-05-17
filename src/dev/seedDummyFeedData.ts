@@ -164,6 +164,7 @@ export async function seedDummyPostsForUser(
       attachments: [],
       tags: spec.tags,
       researchArea: spec.researchArea,
+      likeCount: 0,
       resonateCount: spec.resonateCount ?? 0,
       viewCount: spec.viewCount ?? 0,
       commentCount: spec.commentCount ?? 0,

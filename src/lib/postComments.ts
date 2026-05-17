@@ -71,7 +71,12 @@ export async function loadPostComments(postId: string): Promise<CommentWithAutho
     orderBy('createdAt', 'asc'),
     limit(120)
   );
-  const snap = await getDocs(qy);
+  let snap;
+  try {
+    snap = await getDocs(qy);
+  } catch {
+    return [];
+  }
   const list: Comment[] = snap.docs.map((d) => ({
     id: d.id,
     ...(d.data() as Omit<Comment, 'id'>),

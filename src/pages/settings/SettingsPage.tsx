@@ -14,6 +14,8 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../contexts/ToastContext';
 import { db, firebaseReady } from '../../lib/firebase';
+import { enableDummyFeedSeed } from '../../config/flags';
+import { seedPlatformReviewForCurrentUser } from '../../dev/seedPlatformReviewData';
 
 const THEME_OPTIONS: { value: ThemePreference; label: string; hint: string }[] = [
   { value: 'system', label: 'System', hint: 'Match device light or dark mode.' },
@@ -29,6 +31,7 @@ export function SettingsPage() {
   const savedShape = resolveFruitShapeId(profile?.labNoteStoryPortrait);
   const [draftShape, setDraftShape] = useState<LabNoteFruitShapeId>(savedShape);
   const [savingFruit, setSavingFruit] = useState(false);
+  const [loadingSample, setLoadingSample] = useState(false);
 
   useEffect(() => {
     setDraftShape(savedShape);
@@ -52,12 +55,56 @@ export function SettingsPage() {
     }
   };
 
+  const loadSampleProfileData = async () => {
+    if (!user?.uid || !profile || !db || !firebaseReady) return;
+    setLoadingSample(true);
+    try {
+      await seedPlatformReviewForCurrentUser(db, {
+        uid: user.uid,
+        institutionId: profile.institutionId,
+        institutionName: profile.institutionName,
+        primaryLabId: profile.primaryLabId,
+        labIds: profile.labIds ?? [],
+      });
+      showToast('Sample profile data loaded. Open your profile to view it.', 'success');
+    } catch {
+      showToast('Could not load sample data. Check Firestore rules.', 'error');
+    } finally {
+      setLoadingSample(false);
+    }
+  };
+
   return (
     <div>
       <h1 className="font-display text-2xl text-fg">Settings</h1>
       <p className="mt-2 text-sm text-fg-muted">
         Account and appearance. More settings will land here over time.
       </p>
+
+      {enableDummyFeedSeed ? (
+        <section className="mt-10 rounded-card border border-border bg-surface-card p-6">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-fg-subtle">
+            Sample profile data
+          </h2>
+          <p className="mt-2 text-sm text-fg-muted">
+            Load demo research logs, educations, and work experiences on your account for UI
+            review. Also seeds papers, posts, and a research graph streak.
+          </p>
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={loadingSample}
+              onClick={() => void loadSampleProfileData()}
+            >
+              {loadingSample ? 'Loading…' : 'Load sample data'}
+            </Button>
+            <Link to={ROUTES.profile(user?.uid ?? '')} className="text-sm text-brand hover:underline">
+              View profile
+            </Link>
+          </div>
+        </section>
+      ) : null}
 
       <section className="mt-10 rounded-card border border-border bg-surface-card p-6">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-fg-subtle">

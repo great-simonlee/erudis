@@ -10,6 +10,11 @@ import {
   type Firestore,
 } from 'firebase/firestore';
 import { linkCurrentUserToDemoEcosystem } from './linkDemoEcosystem';
+import {
+  SAMPLE_EDUCATIONS,
+  SAMPLE_RESEARCH_LOGS,
+  SAMPLE_WORK_EXPERIENCES,
+} from './sampleProfileData';
 import type { PostType, PostVisibility } from '../types';
 
 export type SeedReviewParams = {
@@ -61,33 +66,6 @@ const ACCOUNT_SAMPLE_POSTS: {
     resonateCount: 2,
     commentCount: 3,
     viewCount: 44,
-  },
-];
-
-const DEMO_LOGS = [
-  {
-    date: '2026-01-08',
-    type: 'experiment' as const,
-    title: 'Pilot run: instrument calibration checklist',
-    content: 'Documented baseline noise floor after recalibration. Sharing notes for the lab wiki.',
-    isPublic: true,
-    tags: ['methods', 'lab'],
-  },
-  {
-    date: '2026-01-12',
-    type: 'idea' as const,
-    title: 'Cross-lab replication swap',
-    content: 'Proposal: exchange one figure worth of experiments with a partner lab next month.',
-    isPublic: true,
-    tags: ['collaboration'],
-  },
-  {
-    date: '2026-01-18',
-    type: 'writing' as const,
-    title: 'Methods section — reviewer round 1',
-    content: 'Tightened statistical reporting per committee feedback (demo text).',
-    isPublic: false,
-    tags: ['thesis'],
   },
 ];
 
@@ -153,6 +131,7 @@ async function seedAccountPosts(
       attachments: [],
       tags: spec.tags,
       researchArea: spec.researchArea,
+      likeCount: 0,
       resonateCount: spec.resonateCount ?? 0,
       viewCount: spec.viewCount ?? 0,
       commentCount: spec.commentCount ?? 0,
@@ -186,15 +165,26 @@ export async function seedPlatformReviewForCurrentUser(
 ): Promise<{ followed: number; feedItems: number }> {
   const { uid, institutionId, institutionName, primaryLabId, labIds } = params;
 
+  const logDates = SAMPLE_RESEARCH_LOGS.map((l) => l.date);
+
   await setDoc(
     doc(db, 'research_graph', uid),
     {
-      loggedDates: ['2026-01-02', '2026-01-05', '2026-01-08', '2026-01-12', '2026-01-18'],
+      loggedDates: ['2026-01-02', '2026-01-05', ...logDates],
       currentStreak: 5,
       longestStreak: 14,
       totalLogDays: 52,
       last30DayCount: 9,
       updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+
+  await setDoc(
+    doc(db, 'users', uid),
+    {
+      educations: SAMPLE_EDUCATIONS,
+      workExperiences: SAMPLE_WORK_EXPERIENCES,
     },
     { merge: true }
   );
@@ -209,7 +199,7 @@ export async function seedPlatformReviewForCurrentUser(
     }
   };
 
-  for (const log of DEMO_LOGS) {
+  for (const log of SAMPLE_RESEARCH_LOGS) {
     const ref = doc(collection(db, 'research_logs'));
     batch.set(ref, {
       ...log,

@@ -3,12 +3,26 @@ import { Link } from 'react-router-dom';
 import { db, firebaseReady } from '../../lib/firebase';
 import { ROUTES } from '../../constants';
 import { loadRecentPapers } from '../../lib/demoEcosystem';
+import { useFilterModalDraft } from '../../hooks/useFilterModalDraft';
+import { FilterModal } from '../../components/shared/FilterModal';
+import { ListPageFilterBar } from '../../components/shared/ListPageFilterBar';
+import { PapersFilterFields } from '../../components/papers/PapersFilterFields';
+import {
+  DEFAULT_PAPER_FILTERS,
+  clearPaperFilterChip,
+  countPaperModalFilters,
+  filterPapers,
+  hasActivePaperFilters,
+  paperFilterChips,
+  type PaperFilterChip,
+} from '../../utils/paperFilters';
 import type { Paper } from '../../types';
 
 export function PapersPage() {
   const [papers, setPapers] = useState<(Paper & { id: string })[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [filters, setFilters] = useState(DEFAULT_PAPER_FILTERS);
+  const filterModal = useFilterModalDraft(filters);
 
   useEffect(() => {
     if (!firebaseReady || !db) {
@@ -33,33 +47,52 @@ export function PapersPage() {
     };
   }, []);
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return papers;
-    return papers.filter(
-      (p) =>
-        p.title.toLowerCase().includes(q) ||
-        p.authors.some((a) => a.toLowerCase().includes(q)) ||
-        (p.venue ?? '').toLowerCase().includes(q)
-    );
-  }, [papers, search]);
+  const filtered = useMemo(() => filterPapers(papers, filters), [papers, filters]);
+  const chips = useMemo(
+    () => paperFilterChips(filters).map((c) => ({ id: c.id, label: c.label })),
+    [filters]
+  );
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="font-display text-2xl text-fg">Papers</h1>
         <p className="mt-2 text-sm text-fg-muted">
-          Recent publications shared on THE ERUDIS — including demo papers from seeded labs.
+          Recent publications shared on THE ERUDIS — search and filter by year, venue, and more.
         </p>
       </div>
 
-      <input
-        type="search"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder="Search title, author, venue…"
-        className="w-full rounded-card border border-border bg-surface-card px-3 py-2 text-sm text-fg placeholder:text-fg-subtle"
+      <ListPageFilterBar
+        searchId="papers-search"
+        search={filters.query}
+        onSearchChange={(query) => setFilters((f) => ({ ...f, query }))}
+        searchPlaceholder="Title, author, venue, abstract…"
+        onOpenFilters={() => filterModal.setOpen(true)}
+        activeFilterCount={countPaperModalFilters(filters)}
+        chips={chips}
+        onRemoveChip={(id) =>
+          setFilters((f) => clearPaperFilterChip(f, id as PaperFilterChip['id']))
+        }
+        onClearAll={
+          hasActivePaperFilters(filters) ? () => setFilters(DEFAULT_PAPER_FILTERS) : undefined
+        }
+        resultSummary={
+          !loading
+            ? `${filtered.length} of ${papers.length} ${papers.length === 1 ? 'paper' : 'papers'}`
+            : undefined
+        }
       />
+
+      <FilterModal
+        open={filterModal.open}
+        title="Filter papers"
+        subtitle="Refine by publication year, venue, arXiv, and sort order."
+        onClose={filterModal.close}
+        onApply={() => filterModal.apply(setFilters)}
+        onReset={() => filterModal.setDraft(DEFAULT_PAPER_FILTERS)}
+      >
+        <PapersFilterFields filters={filterModal.draft} onChange={filterModal.setDraft} />
+      </FilterModal>
 
       {loading && (
         <div className="space-y-3" aria-busy="true">
@@ -74,7 +107,7 @@ export function PapersPage() {
 
       {!loading && filtered.length === 0 && (
         <p className="rounded-card border border-border bg-surface-card px-4 py-6 text-center text-sm text-fg-muted">
-          No papers yet. Researchers can add papers from their profiles.
+          No papers match these filters.
         </p>
       )}
 

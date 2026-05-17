@@ -26,7 +26,8 @@ type EditableProfileBannerProps = {
   onMediaUpdated: (patch: Partial<Pick<User, 'avatarUrl' | 'coverUrl'>>) => void;
   stats: {
     papers: number;
-    resonates: number;
+    likesReceived: number;
+    resonatesReceived: number;
     followers: number;
     following: number;
   };
@@ -95,8 +96,8 @@ export function EditableProfileBanner({
   };
 
   return (
-    <section className="relative overflow-hidden rounded-card border border-border bg-surface-card">
-      <div className="group relative h-28 sm:h-32">
+    <section className="relative overflow-hidden rounded-card border border-border bg-surface-card shadow-[0_1px_3px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_28px_-14px_rgba(0,0,0,0.5)]">
+      <div className="group relative h-32 sm:h-36">
         {profileUser.coverUrl ? (
           <img
             src={profileUser.coverUrl}
@@ -109,13 +110,17 @@ export function EditableProfileBanner({
             aria-hidden
           />
         )}
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-surface-card via-surface-card/90 to-transparent sm:h-16"
+          aria-hidden
+        />
         {isSelf ? (
-          <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/35 opacity-100 transition sm:bg-black/0 sm:opacity-0 sm:group-hover:bg-black/40 sm:group-hover:opacity-100 sm:group-focus-within:bg-black/40 sm:group-focus-within:opacity-100">
+          <div className="absolute inset-x-0 top-0 flex justify-end gap-1.5 p-2 sm:inset-0 sm:items-center sm:justify-center sm:gap-2 sm:bg-black/0 sm:opacity-0 sm:transition sm:group-hover:bg-black/40 sm:group-hover:opacity-100 sm:group-focus-within:bg-black/40 sm:group-focus-within:opacity-100">
             <button
               type="button"
               disabled={busy !== null}
               onClick={() => coverInputRef.current?.click()}
-              className="rounded-full border border-white/30 bg-black/50 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-sm hover:bg-black/70 disabled:opacity-50"
+              className="rounded-full border border-white/30 bg-black/55 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur-sm hover:bg-black/70 disabled:opacity-50 sm:px-3 sm:py-1.5 sm:text-xs"
             >
               {busy === 'cover' ? 'Uploading…' : 'Change cover'}
             </button>
@@ -124,7 +129,7 @@ export function EditableProfileBanner({
                 type="button"
                 disabled={busy !== null}
                 onClick={() => void removeCover()}
-                className="rounded-full border border-white/30 bg-black/50 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-sm hover:bg-black/70 disabled:opacity-50"
+                className="rounded-full border border-white/30 bg-black/55 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur-sm hover:bg-black/70 disabled:opacity-50 sm:px-3 sm:py-1.5 sm:text-xs"
               >
                 Remove
               </button>
@@ -144,17 +149,17 @@ export function EditableProfileBanner({
         />
       </div>
 
-      <div className="relative px-4 pb-6 pt-0 sm:px-6">
-        <div className="-mt-12 flex items-start gap-4">
-          <div className="relative shrink-0">
+      <div className="relative bg-surface-card px-5 pb-6 pt-1 sm:px-6">
+        <div className="-mt-14 flex flex-col gap-4 sm:-mt-12 sm:flex-row sm:items-start sm:gap-5">
+          <div className="relative shrink-0 self-start">
             {profileUser.avatarUrl ? (
               <img
                 src={profileUser.avatarUrl}
                 alt=""
-                className="h-20 w-20 rounded-full border-[3px] border-brand object-cover sm:h-24 sm:w-24"
+                className="h-[4.5rem] w-[4.5rem] rounded-full border-[3px] border-surface-card object-cover shadow-[0_4px_16px_-4px_rgba(29,158,117,0.35)] ring-2 ring-brand/30 sm:h-24 sm:w-24"
               />
             ) : (
-              <div className="flex h-20 w-20 items-center justify-center rounded-full border-[3px] border-brand bg-surface-raised text-2xl font-medium text-fg-muted sm:h-24 sm:w-24">
+              <div className="flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-full border-[3px] border-surface-card bg-surface-raised text-2xl font-medium text-fg-muted shadow-md ring-2 ring-brand/30 sm:h-24 sm:w-24">
                 {profileUser.name.slice(0, 1).toUpperCase()}
               </div>
             )}
@@ -182,20 +187,22 @@ export function EditableProfileBanner({
               }}
             />
           </div>
-          <div className="flex min-w-0 flex-1 flex-col gap-3 pt-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+          <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:pt-1">
             <div className="min-w-0">
-              <h1 className="font-display text-2xl text-fg sm:text-3xl">{profileUser.name}</h1>
-              <p className="mt-1 text-sm text-fg-muted">
-                {roleLabel(profileUser.role)}
+              <h1 className="font-display text-[1.65rem] leading-tight text-fg sm:text-3xl">
+                {profileUser.name}
+              </h1>
+              <p className="mt-1.5 text-sm leading-snug text-fg-muted">
+                <span className="font-medium text-fg-soft">{roleLabel(profileUser.role)}</span>
                 {profileUser.institutionName ? (
                   <>
-                    {' '}
-                    · {profileUser.institutionName}
+                    <span className="text-fg-subtle"> · </span>
+                    <span>{profileUser.institutionName}</span>
                   </>
                 ) : null}
               </p>
             </div>
-            <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
               {profileUser.openToCollaborate ? (
                 <span className="inline-flex h-10 items-center rounded-full bg-brand/20 px-3 text-xs font-medium text-brand">
                   Open to collaborate
@@ -204,7 +211,7 @@ export function EditableProfileBanner({
               {isSelf ? (
                 <Link
                   to={ROUTES.settings}
-                  className="inline-flex h-10 items-center justify-center rounded-card border border-border bg-transparent px-4 text-sm font-medium text-fg hover:bg-surface-raised"
+                  className="inline-flex h-11 w-full items-center justify-center rounded-full border border-border bg-surface-raised px-4 text-sm font-medium text-fg transition-colors hover:border-brand/35 hover:bg-brand/5 sm:h-10 sm:w-auto sm:rounded-card sm:bg-transparent"
                 >
                   Edit profile
                 </Link>
@@ -251,14 +258,18 @@ export function EditableProfileBanner({
           </div>
         ) : null}
 
-        <div className="mt-6 flex flex-wrap gap-4 border-t border-border pt-4 text-sm">
+        <div className="mt-6 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-5 text-sm sm:flex sm:flex-wrap sm:gap-4">
           <span>
             <strong className="text-fg">{stats.papers}</strong>{' '}
             <span className="text-fg-muted">papers</span>
           </span>
           <span>
-            <strong className="text-fg">{stats.resonates}</strong>{' '}
-            <span className="text-fg-muted">resonates on posts</span>
+            <strong className="text-fg">{stats.likesReceived}</strong>{' '}
+            <span className="text-fg-muted">likes received</span>
+          </span>
+          <span>
+            <strong className="text-fg">{stats.resonatesReceived}</strong>{' '}
+            <span className="text-fg-muted">resonates received</span>
           </span>
           <span>
             <strong className="text-fg">{stats.followers}</strong>{' '}

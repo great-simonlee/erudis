@@ -1,24 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Markdown from 'react-markdown';
-import {
-  deleteDoc,
-  doc,
-  getDoc,
-  increment,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
-} from 'firebase/firestore';
+import { deleteDoc, doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db, firebaseReady } from '../../lib/firebase';
-import { notifyResonate } from '../../lib/notify';
+import { safeGetDoc } from '../../lib/firestoreAccess';
+import { togglePostLike, togglePostResonate } from '../../lib/postEngagement';
+import { notifyLike, notifyResonate } from '../../lib/notify';
+import { useAuth } from '../../hooks/useAuth';
 import { ROUTES } from '../../constants';
 import { useToast } from '../../contexts/ToastContext';
 import { formatTimeAgo } from '../../utils/timeAgo';
-import { postTypeBadge } from '../../utils/postTypeStyle';
+import { postTypeAccentBorder, postTypeBadge } from '../../utils/postTypeStyle';
 import { roleLabel } from '../../utils/roleLabels';
 import { PostCommentThread } from './PostCommentThread';
 import type { FeedRow } from '../../hooks/useFeedItems';
+import { AppIcon, ICON_STROKE } from '../ui/AppIcon';
+import { Bookmark, Heart, MessageSquare, Share2, Waves } from 'lucide-react';
 
 type PostCardProps = {
   row: FeedRow;
@@ -27,104 +24,128 @@ type PostCardProps = {
   onChanged?: () => void;
 };
 
-function IconLike(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden {...props}>
-      <path
-        fill="currentColor"
-        d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-      />
-    </svg>
-  );
-}
-
-function IconBubble(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden {...props}>
-      <path fill="currentColor" d="M4 4h16v12H7l-3 3zm3 3v6h10V7z" />
-    </svg>
-  );
-}
-
-function IconLink(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden {...props}>
-      <path
-        fill="currentColor"
-        d="M3.9 12c0-1.7 1.4-3.1 3.1-3.1h4V7H7a5 5 0 0 0 0 10h4v-1.9H7a3.1 3.1 0 0 1-3.1-3.1m5.1 1h4a3.1 3.1 0 0 0 0-6.2h-4V7h4a5 5 0 0 1 0 10z"
-      />
-    </svg>
-  );
-}
-
-function IconBookmark(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden {...props}>
-      <path fill="currentColor" d="M6 2h12v20l-6-4-6 4zm2 2v14.5l4-2.7 4 2.7V4z" />
-    </svg>
-  );
-}
+const actionIconSize = 18;
 
 export function PostCard({ row, viewerUid, compact, onChanged }: PostCardProps) {
   const { post, author, lab } = row;
+  const { profile } = useAuth();
   const { showToast } = useToast();
   const [expanded, setExpanded] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(post.resonateCount);
+  const [resonated, setResonated] = useState(false);
+  const [likeCount, setLikeCount] = useState(post.likeCount ?? 0);
+  const [resonateCount, setResonateCount] = useState(post.resonateCount ?? 0);
   const [bookmarked, setBookmarked] = useState(false);
 
   const badge = useMemo(() => postTypeBadge(post.type), [post.type]);
 
   useEffect(() => {
-    setLikeCount(post.resonateCount);
-  }, [post.resonateCount]);
+    setLikeCount(post.likeCount ?? 0);
+    setResonateCount(post.resonateCount ?? 0);
+  }, [post.likeCount, post.resonateCount]);
 
   useEffect(() => {
     if (!firebaseReady || !db || !viewerUid) return;
+    let cancelled = false;
     void (async () => {
-      const r = await getDoc(doc(db, 'posts', post.id, 'resonates', viewerUid));
-      setLiked(r.exists());
-      const b = await getDoc(doc(db, 'users', viewerUid, 'bookmarks', post.id));
-      setBookmarked(b.exists());
+      try {
+        const [likeSnap, resonateSnap, bookmarkSnap] = await Promise.all([
+          safeGetDoc(doc(db, 'posts', post.id, 'likes', viewerUid)),
+          safeGetDoc(doc(db, 'posts', post.id, 'resonates', viewerUid)),
+          safeGetDoc(doc(db, 'users', viewerUid, 'bookmarks', post.id)),
+        ]);
+        if (cancelled) return;
+        setLiked(likeSnap?.exists() ?? false);
+        setResonated(resonateSnap?.exists() ?? false);
+        setBookmarked(bookmarkSnap?.exists() ?? false);
+      } catch {
+        if (!cancelled) {
+          setLiked(false);
+          setResonated(false);
+          setBookmarked(false);
+        }
+      }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, [post.id, viewerUid]);
+
+  const viewerName = profile?.name ?? 'Someone';
 
   const toggleLike = async () => {
     if (!viewerUid || !db) {
       showToast('Sign in to like posts.', 'error');
       return;
     }
-    const rRef = doc(db, 'posts', post.id, 'resonates', viewerUid);
-    const pRef = doc(db, 'posts', post.id);
     const next = !liked;
     setLiked(next);
-    setLikeCount((c) => c + (next ? 1 : -1));
+    setLikeCount((c) => Math.max(0, c + (next ? 1 : -1)));
     try {
-      if (next) {
-        await setDoc(rRef, { userId: viewerUid, createdAt: serverTimestamp() });
-        await updateDoc(pRef, { resonateCount: increment(1) });
-        if (post.authorId !== viewerUid) {
-          try {
-            await notifyResonate(db, {
-              fromUserId: viewerUid,
-              postAuthorId: post.authorId,
-              postId: post.id,
-              postTitle: post.title,
-            });
-          } catch {
-            /* notification is best-effort */
-          }
+      await togglePostLike(db, {
+        postId: post.id,
+        postAuthorId: post.authorId,
+        viewerUid,
+        currentlyLiked: liked,
+      });
+      if (next && post.authorId !== viewerUid) {
+        try {
+          await notifyLike(db, {
+            fromUserId: viewerUid,
+            fromUserName: viewerName,
+            postAuthorId: post.authorId,
+            postId: post.id,
+            postTitle: post.title,
+          });
+        } catch {
+          /* best-effort */
         }
-      } else {
-        await deleteDoc(rRef);
-        await updateDoc(pRef, { resonateCount: increment(-1) });
       }
       onChanged?.();
     } catch {
       setLiked(!next);
-      setLikeCount((c) => c + (next ? -1 : 1));
+      setLikeCount((c) => Math.max(0, c + (next ? -1 : 1)));
       showToast('Could not update like.', 'error');
+    }
+  };
+
+  const toggleResonate = async () => {
+    if (!viewerUid || !db) {
+      showToast('Sign in to resonate.', 'error');
+      return;
+    }
+    const next = !resonated;
+    setResonated(next);
+    setResonateCount((c) => Math.max(0, c + (next ? 1 : -1)));
+    try {
+      await togglePostResonate(db, {
+        postId: post.id,
+        postAuthorId: post.authorId,
+        viewerUid,
+        currentlyResonated: resonated,
+      });
+      if (next && post.authorId !== viewerUid) {
+        try {
+          await notifyResonate(db, {
+            fromUserId: viewerUid,
+            fromUserName: viewerName,
+            postAuthorId: post.authorId,
+            postId: post.id,
+            postTitle: post.title,
+          });
+        } catch {
+          /* best-effort */
+        }
+      }
+      if (next) {
+        showToast('Resonated — shared with your followers.', 'success');
+      }
+      onChanged?.();
+    } catch {
+      setResonated(!next);
+      setResonateCount((c) => Math.max(0, c + (next ? -1 : 1)));
+      showToast('Could not update resonate.', 'error');
     }
   };
 
@@ -168,7 +189,7 @@ export function PostCard({ row, viewerUid, compact, onChanged }: PostCardProps) 
   return (
     <article
       id={`post-${post.id}`}
-      className={`rounded-card border border-border bg-surface-card ${
+      className={`erudis-post-card ${postTypeAccentBorder(post.type)} ${
         compact ? 'p-3' : 'p-4'
       }`}
     >
@@ -261,23 +282,46 @@ export function PostCard({ row, viewerUid, compact, onChanged }: PostCardProps) 
             </div>
           )}
 
-          <div className="mt-4 flex flex-wrap items-center gap-1 border-t border-border pt-3">
+          <div className="mt-4 -mx-1 flex flex-wrap items-center gap-1 rounded-lg border border-dashed border-border/80 bg-surface-raised/40 px-2 py-2">
             <button
               type="button"
               onClick={() => void toggleLike()}
               aria-pressed={liked}
+              title="Appreciate this work (author only)"
               className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                liked ? 'bg-brand text-white' : 'text-fg-muted hover:bg-surface-raised'
+                liked
+                  ? 'bg-rose-500/90 text-white'
+                  : 'text-fg-muted hover:bg-surface-raised hover:text-rose-300'
               }`}
             >
-              <IconLike /> Like <span className="tabular-nums">{likeCount}</span>
+              <AppIcon
+                icon={Heart}
+                size={actionIconSize}
+                strokeWidth={ICON_STROKE}
+                className={liked ? 'fill-current' : ''}
+              />{' '}
+              Like <span className="tabular-nums">{likeCount}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => void toggleResonate()}
+              aria-pressed={resonated}
+              title="Amplify to your followers"
+              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                resonated
+                  ? 'bg-brand text-white'
+                  : 'text-fg-muted hover:bg-surface-raised hover:text-brand'
+              }`}
+            >
+              <AppIcon icon={Waves} size={actionIconSize} strokeWidth={ICON_STROKE} /> Resonate{' '}
+              <span className="tabular-nums">{resonateCount}</span>
             </button>
             <button
               type="button"
               onClick={() => setCommentsOpen((o) => !o)}
               className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-fg-muted hover:bg-surface-raised"
             >
-              <IconBubble /> Comment{' '}
+              <AppIcon icon={MessageSquare} size={actionIconSize} strokeWidth={ICON_STROKE} /> Comment{' '}
               <span className="tabular-nums">{post.commentCount}</span>
             </button>
             <button
@@ -285,7 +329,7 @@ export function PostCard({ row, viewerUid, compact, onChanged }: PostCardProps) 
               onClick={() => void sharePost()}
               className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-fg-muted hover:bg-surface-raised"
             >
-              <IconLink /> Share
+              <AppIcon icon={Share2} size={actionIconSize} strokeWidth={ICON_STROKE} /> Share
             </button>
             <button
               type="button"
@@ -295,7 +339,13 @@ export function PostCard({ row, viewerUid, compact, onChanged }: PostCardProps) 
               }`}
               aria-pressed={bookmarked}
             >
-              <IconBookmark /> Bookmark
+              <AppIcon
+                icon={Bookmark}
+                size={actionIconSize}
+                strokeWidth={ICON_STROKE}
+                className={bookmarked ? 'fill-current' : ''}
+              />{' '}
+              Bookmark
             </button>
           </div>
 

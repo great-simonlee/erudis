@@ -1,9 +1,35 @@
 import { addDoc, collection, serverTimestamp, type Firestore } from 'firebase/firestore';
 
+export async function notifyLike(
+  db: Firestore,
+  args: {
+    fromUserId: string;
+    fromUserName: string;
+    postAuthorId: string;
+    postId: string;
+    postTitle: string;
+  }
+): Promise<void> {
+  if (args.fromUserId === args.postAuthorId) return;
+  await addDoc(collection(db, 'notifications', args.postAuthorId, 'items'), {
+    type: 'like',
+    fromUserId: args.fromUserId,
+    targetUserId: args.postAuthorId,
+    postId: args.postId,
+    postTitle: args.postTitle.slice(0, 200),
+    labId: null,
+    labName: null,
+    message: `${args.fromUserName} liked your post.`,
+    isRead: false,
+    createdAt: serverTimestamp(),
+  });
+}
+
 export async function notifyResonate(
   db: Firestore,
   args: {
     fromUserId: string;
+    fromUserName: string;
     postAuthorId: string;
     postId: string;
     postTitle: string;
@@ -18,7 +44,7 @@ export async function notifyResonate(
     postTitle: args.postTitle.slice(0, 200),
     labId: null,
     labName: null,
-    message: 'Liked your post.',
+    message: `${args.fromUserName} resonated your post — your work is spreading.`,
     isRead: false,
     createdAt: serverTimestamp(),
   });

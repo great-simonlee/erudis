@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useState, type SVGProps } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import type { LucideIcon } from 'lucide-react';
+import { Link2, Mail, Sparkles } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { sendEmailVerification, signOut } from 'firebase/auth';
 import { requireEmailVerification, useCentralVerificationInbox } from '../../config/flags';
@@ -12,47 +14,12 @@ import { CENTRAL_VERIFICATION_INBOX } from '../../utils/verificationInbox';
 
 type VerifyLocationState = { institutionalEmail?: string };
 
-function IconMail(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden fill="none" {...props}>
-      <path
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M3 8.25V17a1 1 0 001 1h16a1 1 0 001-1V8.25M3 8.25 10.52 6.466a1 1 0 011.002-.216L12 10.5l7.998-2.45a1 1 0 011.002.216L21 8.25M3 8.25l8.25 5.5a1 1 0 001.5 0L21 8.25"
-      />
-    </svg>
-  );
-}
-
-function IconLink(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden fill="none" {...props}>
-      <path
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M10 13a5 5 0 007.07 0l1.41-1.41a5 5 0 00-7.07-7.07L9 6M14 11a5 5 0 00-7.07 0L5.52 12.41a5 5 0 007.07 7.07L15 18"
-      />
-    </svg>
-  );
-}
-
-function IconSpark(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden fill="none" {...props}>
-      <path
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z"
-      />
-    </svg>
-  );
-}
+type VerifyStep = {
+  n: number;
+  title: string;
+  body: string;
+  icon: LucideIcon;
+};
 
 export function VerifyEmailPage() {
   const { user, profile, profileLoading, loading } = useAuth();
@@ -131,41 +98,41 @@ export function VerifyEmailPage() {
           n: 1,
           title: `Check ${CENTRAL_VERIFICATION_INBOX}`,
           body: `Firebase does not send to your institutional address in this test mode. Open the mailbox for ${CENTRAL_VERIFICATION_INBOX}, search for "firebase" or "noreply", and check spam. The To field shows the technical address below.`,
-          icon: IconMail,
+          icon: Mail,
         },
         {
           n: 2,
           title: 'Tap the secure link',
           body: 'There is no code to type — confirmation happens in one click in the browser.',
-          icon: IconLink,
+          icon: Link2,
         },
         {
           n: 3,
           title: 'Return here',
           body: 'Keep this tab open. When the link succeeds, we move you forward automatically.',
-          icon: IconSpark,
+          icon: Sparkles,
         },
-      ] as const)
+      ] satisfies VerifyStep[])
     : ([
         {
           n: 1,
           title: 'Open the message',
           body: 'Look for an email from Firebase or THE ERUDIS in your inbox and spam folder.',
-          icon: IconMail,
+          icon: Mail,
         },
         {
           n: 2,
           title: 'Tap the secure link',
           body: 'There is no code to type — confirmation happens in one click in the browser.',
-          icon: IconLink,
+          icon: Link2,
         },
         {
           n: 3,
           title: 'Return here',
           body: 'Keep this tab open. When the link succeeds, we move you forward automatically.',
-          icon: IconSpark,
+          icon: Sparkles,
         },
-      ] as const);
+      ] satisfies VerifyStep[]);
 
   if (loading || !user) {
     return (
@@ -212,7 +179,7 @@ export function VerifyEmailPage() {
 
           <div className="px-6 pb-8 pt-7 sm:px-10 sm:pb-10 sm:pt-9">
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-brand/25 bg-brand/10 text-brand">
-              <IconMail className="h-7 w-7" strokeWidth={1.5} />
+              <Mail className="h-7 w-7" strokeWidth={1.5} aria-hidden />
             </div>
 
             <h1 className="mt-6 text-center font-display text-2xl tracking-tight text-fg sm:text-[1.65rem]">
@@ -230,7 +197,7 @@ export function VerifyEmailPage() {
                 <div className="flex justify-center">
                   <div className="inline-flex max-w-full items-center gap-2.5 rounded-full border border-border bg-surface-raised px-4 py-2.5 shadow-inner">
                     <span className="shrink-0 rounded-md bg-brand/15 p-1 text-brand" aria-hidden>
-                      <IconMail className="h-4 w-4" />
+                      <Mail className="h-4 w-4" strokeWidth={1.5} aria-hidden />
                     </span>
                     <span className="min-w-0 truncate font-mono text-[13px] text-fg-soft">
                       {addr || 'your institutional email'}

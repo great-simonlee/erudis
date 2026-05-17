@@ -8,17 +8,31 @@ import {
   query,
   where,
 } from 'firebase/firestore';
-import { RESEARCH_FIELD_CATALOG, ROUTES } from '../../constants';
+import { ROUTES } from '../../constants';
 import { db, firebaseReady } from '../../lib/firebase';
 import { useAuth } from '../../hooks/useAuth';
+import { useFilterModalDraft } from '../../hooks/useFilterModalDraft';
+import { DiscoverFilterFields } from '../../components/discover/DiscoverFilterFields';
+import { FilterModal } from '../../components/shared/FilterModal';
+import { ListPageFilterBar } from '../../components/shared/ListPageFilterBar';
 import { formatTimeAgo } from '../../utils/timeAgo';
 import { postTypeBadge } from '../../utils/postTypeStyle';
+import { sortPostsByTrending } from '../../lib/discoverScore';
+import {
+  DEFAULT_DISCOVER_FILTERS,
+  clearDiscoverFilterChip,
+  countDiscoverModalFilters,
+  discoverFilterChips,
+  filterDiscoverPosts,
+  hasActiveDiscoverFilters,
+  type DiscoverFilterChip,
+} from '../../utils/discoverFilters';
 import type { Post } from '../../types';
 
 type DiscoverTab = 'trending' | 'resonated' | 'viewed' | 'papers' | 'following';
 
 const TABS: { id: DiscoverTab; label: string }[] = [
-  { id: 'trending', label: 'New' },
+  { id: 'trending', label: 'Trending' },
   { id: 'resonated', label: 'Most resonated' },
   { id: 'viewed', label: 'Most viewed' },
   { id: 'papers', label: 'New papers' },
@@ -35,8 +49,8 @@ function rankBadge(i: number): string | null {
 export function DiscoverPage() {
   const { profile } = useAuth();
   const [tab, setTab] = useState<DiscoverTab>('trending');
-  const [field, setField] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
+  const [filters, setFilters] = useState(DEFAULT_DISCOVER_FILTERS);
+  const filterModal = useFilterModalDraft(filters);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -82,17 +96,15 @@ export function DiscoverPage() {
       if (tab === 'papers') {
         rows = rows.filter((p) => p.type === 'paper');
       }
-      if (field) {
-        rows = rows.filter((p) => p.researchArea === field);
+      if (filters.field) {
+        rows = rows.filter((p) => p.researchArea === filters.field);
       }
       if (tab === 'resonated') {
         rows = [...rows].sort((a, b) => b.resonateCount - a.resonateCount);
       } else if (tab === 'viewed') {
         rows = [...rows].sort((a, b) => b.viewCount - a.viewCount);
       } else if (tab === 'trending') {
-        rows = [...rows].sort(
-          (a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0)
-        );
+        rows = sortPostsByTrending(rows);
       }
       setPosts(rows.slice(0, 40));
     } catch {
@@ -101,24 +113,16 @@ export function DiscoverPage() {
     } finally {
       setLoading(false);
     }
-  }, [tab, field, profile?.following]);
+  }, [tab, filters.field, profile?.following]);
 
   useEffect(() => {
     void loadPublic();
   }, [loadPublic]);
 
-  const displayedPosts = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return posts;
-    return posts.filter(
-      (p) =>
-        p.title.toLowerCase().includes(q) || p.content.toLowerCase().includes(q)
-    );
-  }, [posts, search]);
-
-  const fields = useMemo(
-    () => ['All', ...RESEARCH_FIELD_CATALOG.slice(0, 24)],
-    []
+  const displayedPosts = useMemo(() => filterDiscoverPosts(posts, filters), [posts, filters]);
+  const chips = useMemo(
+    () => discoverFilterChips(filters).map((c) => ({ id: c.id, label: c.label })),
+    [filters]
   );
 
   return (
@@ -126,7 +130,7 @@ export function DiscoverPage() {
       <div>
         <h1 className="font-display text-2xl text-fg">Discover</h1>
         <p className="mt-2 text-sm text-fg-muted">
-          Public research updates across THE ERUDIS — filter by field and sort mode.
+          Public research updates — search posts and filter by field or type.
         </p>
       </div>
 
@@ -143,35 +147,35 @@ export function DiscoverPage() {
         </span>
       </Link>
 
-      <div>
-        <label htmlFor="disc-search" className="sr-only">
-          Search posts
-        </label>
-        <input
-          id="disc-search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search titles and content…"
-          className="w-full rounded-card border border-border bg-surface-card px-3 py-2.5 text-sm text-fg placeholder:text-fg-subtle"
-        />
-      </div>
+      <ListPageFilterBar
+        searchId="disc-search"
+        search={filters.query}
+        onSearchChange={(query) => setFilters((f) => ({ ...f, query }))}
+        searchPlaceholder="Search titles and content…"
+        onOpenFilters={() => filterModal.setOpen(true)}
+        activeFilterCount={countDiscoverModalFilters(filters)}
+        chips={chips}
+        onRemoveChip={(id) =>
+          setFilters((f) => clearDiscoverFilterChip(f, id as DiscoverFilterChip['id']))
+        }
+        onClearAll={
+          hasActiveDiscoverFilters(filters) ? () => setFilters(DEFAULT_DISCOVER_FILTERS) : undefined
+        }
+        resultSummary={
+          !loading ? `${displayedPosts.length} posts` : undefined
+        }
+      />
 
-      <div className="flex flex-wrap gap-2">
-        {fields.map((f) => (
-          <button
-            key={f}
-            type="button"
-            onClick={() => setField(f === 'All' ? null : f)}
-            className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
-              (f === 'All' && !field) || f === field
-                ? 'border-brand bg-brand/15 text-brand'
-                : 'border-border text-fg-muted hover:border-fg-subtle'
-            }`}
-          >
-            {f === 'All' ? 'All fields' : f}
-          </button>
-        ))}
-      </div>
+      <FilterModal
+        open={filterModal.open}
+        title="Filter discover"
+        subtitle="Research field reloads the feed; post type filters the current list."
+        onClose={filterModal.close}
+        onApply={() => filterModal.apply(setFilters)}
+        onReset={() => filterModal.setDraft(DEFAULT_DISCOVER_FILTERS)}
+      >
+        <DiscoverFilterFields filters={filterModal.draft} onChange={filterModal.setDraft} />
+      </FilterModal>
 
       <div className="flex flex-wrap gap-1 border-b border-border pb-2">
         {TABS.map((t) => (
@@ -249,6 +253,7 @@ export function DiscoverPage() {
                       <p className="mt-1 line-clamp-2 text-xs text-fg-muted">{post.content}</p>
                       <div className="mt-2 flex flex-wrap gap-3 text-[11px] text-fg-subtle">
                         <span>{post.resonateCount} resonates</span>
+                        <span>· {post.likeCount ?? 0} likes</span>
                         <span>{post.viewCount} views</span>
                         <span>{formatTimeAgo(post.createdAt)}</span>
                       </div>

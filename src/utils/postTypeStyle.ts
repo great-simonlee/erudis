@@ -5,6 +5,26 @@ export type PostTypeBadgeStyle = {
   className: string;
 };
 
+/** Left border accent for post cards in the feed. */
+export function postTypeAccentBorder(type: PostType): string {
+  switch (type) {
+    case 'result':
+      return 'border-l-[#8b7cf8]';
+    case 'paper_review':
+      return 'border-l-brand';
+    case 'idea':
+      return 'border-l-amber-500';
+    case 'milestone':
+      return 'border-l-yellow-500';
+    case 'paper':
+      return 'border-l-sky-500';
+    case 'question':
+      return 'border-l-teal-500';
+    default:
+      return 'border-l-zinc-500';
+  }
+}
+
 export function postTypeBadge(type: PostType): PostTypeBadgeStyle {
   switch (type) {
     case 'update':

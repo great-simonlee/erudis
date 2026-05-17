@@ -1,21 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Bell } from 'lucide-react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db, firebaseReady } from '../../lib/firebase';
 import { ROUTES } from '../../constants';
 import { useNotifications } from '../../hooks/useNotifications';
 import { formatTimeAgo } from '../../utils/timeAgo';
-
-function IconBell(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden {...props}>
-      <path
-        fill="currentColor"
-        d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2m6-6V11a6 6 0 1 0-12 0v5H4v2h16v-2z"
-      />
-    </svg>
-  );
-}
+import { AppIcon, ICON_STROKE } from '../ui/AppIcon';
 
 type NotificationBellProps = {
   uid: string | undefined;
@@ -58,7 +49,7 @@ export function NotificationBell({ uid, compact }: NotificationBellProps) {
         aria-label="Notifications"
         aria-expanded={open}
       >
-        <IconBell />
+        <AppIcon icon={Bell} size={22} strokeWidth={ICON_STROKE} />
         {unreadCount > 0 && (
           <span className="absolute right-1 top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-brand px-0.5 text-[10px] font-bold text-white">
             {unreadCount > 9 ? '9+' : unreadCount}

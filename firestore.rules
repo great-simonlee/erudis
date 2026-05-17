@@ -65,11 +65,16 @@ service cloud.firestore {
 
     function postEngagementOnly() {
       let d = request.resource.data.diff(resource.data).affectedKeys();
-      return d.hasOnly(['resonateCount'])
+      return d.hasOnly(['likeCount'])
+        || d.hasOnly(['likeCount', 'updatedAt'])
+        || d.hasOnly(['resonateCount'])
         || d.hasOnly(['resonateCount', 'updatedAt'])
         || d.hasOnly(['commentCount'])
         || d.hasOnly(['commentCount', 'updatedAt'])
-        || d.hasOnly(['resonateCount', 'commentCount', 'updatedAt']);
+        || d.hasOnly(['likeCount', 'resonateCount', 'updatedAt'])
+        || d.hasOnly(['likeCount', 'commentCount', 'updatedAt'])
+        || d.hasOnly(['resonateCount', 'commentCount', 'updatedAt'])
+        || d.hasOnly(['likeCount', 'resonateCount', 'commentCount', 'updatedAt']);
     }
 
     /** Follower may add/remove only themselves on someone else's `followers` array. */
@@ -229,8 +234,22 @@ service cloud.firestore {
         && request.auth.uid == resource.data.authorId;
     }
 
+    match /posts/{postId}/likes/{likerId} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == likerId ||
+        canViewPost(postId)
+      );
+      allow create: if isSignedIn()
+        && request.auth.uid == likerId
+        && canViewPost(postId);
+      allow delete: if isSignedIn() && request.auth.uid == likerId;
+    }
+
     match /posts/{postId}/resonates/{resonatorId} {
-      allow read: if canViewPost(postId);
+      allow read: if isSignedIn() && (
+        request.auth.uid == resonatorId ||
+        canViewPost(postId)
+      );
       allow create: if isSignedIn()
         && request.auth.uid == resonatorId
         && canViewPost(postId);
@@ -263,6 +282,14 @@ service cloud.firestore {
               && request.auth.uid in get(/databases/$(database)/documents/labs/$(request.resource.data.sourceLabId)).data.memberIds
             )
           )
+        ) ||
+        (
+          request.auth.uid != userId
+          && request.resource.data.postId != null
+          && postExists(request.resource.data.postId)
+          && postData(request.resource.data.postId).visibility == 'public'
+          && exists(/databases/$(database)/documents/posts/$(request.resource.data.postId)/resonates/$(request.auth.uid))
+          && userId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.followers
         )
       );
       allow update, delete: if false;
@@ -273,6 +300,12 @@ service cloud.firestore {
       allow create: if isSignedIn()
         && request.resource.data.fromUserId == request.auth.uid
         && (
+          (
+            request.resource.data.type == 'like'
+            && request.resource.data.postId != null
+            && postExists(request.resource.data.postId)
+            && userId == postData(request.resource.data.postId).authorId
+          ) ||
           (
             request.resource.data.type == 'resonate'
             && request.resource.data.postId != null

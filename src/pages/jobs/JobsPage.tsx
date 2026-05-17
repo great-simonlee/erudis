@@ -13,22 +13,24 @@ import {
 } from 'firebase/firestore';
 import Markdown from 'react-markdown';
 import { db, firebaseReady } from '../../lib/firebase';
-import { RESEARCH_FIELD_CATALOG, ROUTES } from '../../constants';
+import { ROUTES } from '../../constants';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../contexts/ToastContext';
+import { useFilterModalDraft } from '../../hooks/useFilterModalDraft';
+import { FilterModal } from '../../components/shared/FilterModal';
+import { ListPageFilterBar } from '../../components/shared/ListPageFilterBar';
+import { JobsFilterFields } from '../../components/jobs/JobsFilterFields';
+import {
+  DEFAULT_JOB_FILTERS,
+  clearJobFilterChip,
+  countJobModalFilters,
+  filterJobs,
+  hasActiveJobFilters,
+  jobFilterChips,
+  type JobFilterChip,
+} from '../../utils/jobFilters';
 import { formatTimeAgo } from '../../utils/timeAgo';
 import type { JobPost } from '../../types';
-
-const POSITION_TYPES = [
-  'Any',
-  'Tenure-track',
-  'Postdoc',
-  'PhD Position',
-  'Research Scientist',
-  'Industry',
-] as const;
-
-const LOCATIONS = ['Any', 'USA', 'Europe', 'Asia', 'Remote'] as const;
 
 function positionBadgeClass(t: string | undefined): string {
   const x = (t ?? '').toLowerCase();
@@ -45,11 +47,9 @@ export function JobsPage() {
   const { showToast } = useToast();
   const [jobs, setJobs] = useState<JobPost[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [positionType, setPositionType] = useState<string>('Any');
-  const [location, setLocation] = useState<string>('Any');
-  const [field, setField] = useState<string>('Any');
+  const [filters, setFilters] = useState(DEFAULT_JOB_FILTERS);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const filterModal = useFilterModalDraft(filters);
 
   const load = useCallback(async () => {
     if (!firebaseReady || !db) {
@@ -83,39 +83,17 @@ export function JobsPage() {
     } finally {
       setLoading(false);
     }
-  }, [user?.uid]); // eslint-disable-line react-hooks/exhaustive-deps -- showToast stable
+  }, [user?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const filtered = useMemo(() => {
-    let rows = jobs;
-    const q = search.trim().toLowerCase();
-    if (q) {
-      rows = rows.filter(
-        (j) =>
-          j.title.toLowerCase().includes(q) ||
-          j.description.toLowerCase().includes(q) ||
-          (j.institutionName ?? '').toLowerCase().includes(q)
-      );
-    }
-    if (positionType !== 'Any') {
-      rows = rows.filter((j) => (j.positionType ?? '').includes(positionType));
-    }
-    if (location !== 'Any') {
-      rows = rows.filter((j) => {
-        const loc = (j.location ?? '').toLowerCase();
-        const rem = j.remote ? 'remote' : '';
-        if (location === 'Remote') return j.remote === true || loc.includes('remote');
-        return loc.includes(location.toLowerCase()) || rem.includes('remote');
-      });
-    }
-    if (field !== 'Any') {
-      rows = rows.filter((j) => (j.description + j.title).includes(field));
-    }
-    return rows;
-  }, [jobs, search, positionType, location, field]);
+  const filtered = useMemo(() => filterJobs(jobs, filters), [jobs, filters]);
+  const chips = useMemo(
+    () => jobFilterChips(filters).map((c) => ({ id: c.id, label: c.label })),
+    [filters]
+  );
 
   const toggleSave = async (jobId: string) => {
     if (!user?.uid || !db) {
@@ -147,9 +125,9 @@ export function JobsPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-display text-2xl text-fg">Positions</h1>
-          <p className="mt-2 text-sm text-fg-muted">
-            Research openings from labs and institutions. UI uses “Position”; data path stays{' '}
-            <code className="text-fg-soft">/jobs</code>.
+          <p className="mt-2 max-w-xl text-sm text-fg-muted">
+            Research openings from labs and institutions. Search in the bar or open filters for
+            type, location, field, and work mode.
           </p>
         </div>
         <Link
@@ -160,78 +138,54 @@ export function JobsPage() {
         </Link>
       </div>
 
-      <input
-        type="search"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder="Search titles, institutions, descriptions…"
-        className="w-full rounded-card border border-border bg-surface-card px-3 py-2.5 text-sm text-fg placeholder:text-fg-subtle"
+      <ListPageFilterBar
+        searchId="jobs-search"
+        search={filters.query}
+        onSearchChange={(query) => setFilters((f) => ({ ...f, query }))}
+        searchPlaceholder="Title, institution, department, location…"
+        onOpenFilters={() => filterModal.setOpen(true)}
+        activeFilterCount={countJobModalFilters(filters)}
+        chips={chips}
+        onRemoveChip={(id) =>
+          setFilters((f) => clearJobFilterChip(f, id as JobFilterChip['id']))
+        }
+        onClearAll={hasActiveJobFilters(filters) ? () => setFilters(DEFAULT_JOB_FILTERS) : undefined}
+        resultSummary={
+          !loading
+            ? `${filtered.length} of ${jobs.length} ${jobs.length === 1 ? 'position' : 'positions'}`
+            : undefined
+        }
       />
 
-      <div className="flex flex-wrap gap-2">
-        <span className="w-full text-xs font-medium text-fg-subtle">Position type</span>
-        {POSITION_TYPES.map((p) => (
-          <button
-            key={p}
-            type="button"
-            onClick={() => setPositionType(p)}
-            className={`rounded-full border px-3 py-1 text-xs ${
-              positionType === p
-                ? 'border-brand bg-brand/15 text-brand'
-                : 'border-border text-fg-muted hover:border-fg-subtle'
-            }`}
-          >
-            {p}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <span className="w-full text-xs font-medium text-fg-subtle">Location</span>
-        {LOCATIONS.map((p) => (
-          <button
-            key={p}
-            type="button"
-            onClick={() => setLocation(p)}
-            className={`rounded-full border px-3 py-1 text-xs ${
-              location === p
-                ? 'border-brand bg-brand/15 text-brand'
-                : 'border-border text-fg-muted hover:border-fg-subtle'
-            }`}
-          >
-            {p}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <span className="w-full text-xs font-medium text-fg-subtle">Field keyword</span>
-        {['Any', ...RESEARCH_FIELD_CATALOG.slice(0, 12)].map((p) => (
-          <button
-            key={p}
-            type="button"
-            onClick={() => setField(p)}
-            className={`rounded-full border px-3 py-1 text-xs ${
-              field === p
-                ? 'border-brand bg-brand/15 text-brand'
-                : 'border-border text-fg-muted hover:border-fg-subtle'
-            }`}
-          >
-            {p}
-          </button>
-        ))}
-      </div>
+      <FilterModal
+        open={filterModal.open}
+        title="Filter positions"
+        subtitle="Narrow by role, geography, research area, and work mode."
+        onClose={filterModal.close}
+        onApply={() => filterModal.apply(setFilters)}
+        onReset={() => filterModal.setDraft(DEFAULT_JOB_FILTERS)}
+      >
+        <JobsFilterFields filters={filterModal.draft} onChange={filterModal.setDraft} />
+      </FilterModal>
 
       {loading && (
         <div className="space-y-3" aria-busy="true">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-28 animate-pulse rounded-card border border-border bg-surface-raised/40" />
+            <div
+              key={i}
+              className="h-28 animate-pulse rounded-card border border-border bg-surface-raised/40"
+            />
           ))}
         </div>
       )}
 
       {!loading && filtered.length === 0 && (
-        <p className="text-sm text-fg-muted">No positions match these filters.</p>
+        <div className="rounded-card border border-dashed border-border bg-surface-raised/30 px-6 py-10 text-center">
+          <p className="text-sm font-medium text-fg">No positions match</p>
+          <p className="mt-1 text-sm text-fg-muted">
+            Try a broader search or reset filters to see all {jobs.length} listings.
+          </p>
+        </div>
       )}
 
       <ul className="space-y-4">

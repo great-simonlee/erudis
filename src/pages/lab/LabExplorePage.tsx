@@ -3,8 +3,11 @@ import { Link } from 'react-router-dom';
 import { db, firebaseReady } from '../../lib/firebase';
 import { ROUTES } from '../../constants';
 import type { InstitutionRecord } from '../../constants/institutions';
-import { Input } from '../../components/ui/Input';
 import { InstitutionLabPicker } from '../../components/lab/InstitutionLabPicker';
+import { LabExploreFilterFields } from '../../components/lab/LabExploreFilterFields';
+import { FilterModal } from '../../components/shared/FilterModal';
+import { ListPageFilterBar } from '../../components/shared/ListPageFilterBar';
+import { useFilterModalDraft } from '../../hooks/useFilterModalDraft';
 import { roleLabel } from '../../utils/roleLabels';
 import {
   isDemoEcosystemAvailable,
@@ -13,11 +16,19 @@ import {
 import { mergeInstitutionLogos } from '../../lib/institutions';
 import {
   fetchInstitutionsWithLabs,
-  filterLabSearchResults,
   listLabsByInstitution,
   searchLabsAndProfessors,
   type LabSearchResult,
 } from '../../utils/labSearch';
+import {
+  DEFAULT_LAB_EXPLORE_FILTERS,
+  clearLabExploreFilterChip,
+  countLabExploreModalFilters,
+  filterLabExploreResults,
+  hasActiveLabExploreFilters,
+  labExploreFilterChips,
+  type LabExploreFilterChip,
+} from '../../utils/labExploreFilters';
 
 function LabResultList({ list }: { list: LabSearchResult[] }) {
   return (
@@ -65,7 +76,8 @@ function LabResultList({ list }: { list: LabSearchResult[] }) {
 }
 
 export function LabExplorePage() {
-  const [query, setQuery] = useState('');
+  const [filters, setFilters] = useState(DEFAULT_LAB_EXPLORE_FILTERS);
+  const filterModal = useFilterModalDraft(filters);
   const [selectedInstitution, setSelectedInstitution] = useState<InstitutionRecord | null>(
     null
   );
@@ -141,7 +153,7 @@ export function LabExplorePage() {
   }, [selectedInstitution]);
 
   useEffect(() => {
-    const term = query.trim();
+    const term = filters.query.trim();
     if (selectedInstitution || term.length < 2 || !firebaseReady || !db) {
       setResults([]);
       if (!selectedInstitution) setError(null);
@@ -167,20 +179,28 @@ export function LabExplorePage() {
     }, 300);
 
     return () => window.clearTimeout(handle);
-  }, [query, selectedInstitution]);
+  }, [filters.query, selectedInstitution]);
 
-  const institutionList = useMemo(() => {
-    if (!selectedInstitution) return [];
-    return filterLabSearchResults(institutionLabs, query);
-  }, [selectedInstitution, institutionLabs, query]);
+  const showFeatured = !selectedInstitution && filters.query.trim().length < 2;
+  const rawList = selectedInstitution ? institutionLabs : showFeatured ? featured : results;
+  const preserveFeaturedOrder =
+    showFeatured && !selectedInstitution && filters.sort === 'featured';
 
-  const showFeatured = !selectedInstitution && query.trim().length < 2;
-  const list = selectedInstitution ? institutionList : showFeatured ? featured : results;
+  const list = useMemo(
+    () => filterLabExploreResults(rawList, filters, preserveFeaturedOrder),
+    [rawList, filters, preserveFeaturedOrder]
+  );
+
   const listLoading = selectedInstitution
     ? institutionLoading
     : showFeatured
       ? featuredLoading
       : loading;
+
+  const chips = useMemo(
+    () => labExploreFilterChips(filters).map((c) => ({ id: c.id, label: c.label })),
+    [filters]
+  );
 
   return (
     <div className="space-y-6">
@@ -198,35 +218,55 @@ export function LabExplorePage() {
         loading={featuredLoading}
       />
 
-      <div>
-        <label htmlFor="lab-explore-search" className="sr-only">
-          Search labs and professors
-        </label>
-        <Input
-          id="lab-explore-search"
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={
-            selectedInstitution
-              ? `Filter labs at ${selectedInstitution.name}…`
-              : 'e.g. Rivera Lab, neuroscience…'
-          }
-          autoComplete="off"
-          className="w-full"
-        />
-        <p className="mt-2 text-xs text-fg-subtle">
-          {selectedInstitution
-            ? institutionLoading
-              ? `Loading labs at ${selectedInstitution.name}…`
-              : query.trim().length >= 2
-                ? `Showing matches within ${selectedInstitution.name}.`
-                : `${institutionList.length} lab${institutionList.length === 1 ? '' : 's'} at ${selectedInstitution.name}.`
-            : showFeatured
-              ? 'Featured labs below — pick an institution above or type 2+ characters to search.'
-              : 'Results include labs whose PI matches your search.'}
-        </p>
-      </div>
+      <ListPageFilterBar
+        searchId="lab-explore-search"
+        search={filters.query}
+        onSearchChange={(query) => setFilters((f) => ({ ...f, query }))}
+        searchPlaceholder={
+          selectedInstitution
+            ? `Filter labs at ${selectedInstitution.name}…`
+            : 'Lab name, PI, research area…'
+        }
+        onOpenFilters={() => filterModal.setOpen(true)}
+        activeFilterCount={countLabExploreModalFilters(filters)}
+        chips={chips}
+        onRemoveChip={(id) =>
+          setFilters((f) => clearLabExploreFilterChip(f, id as LabExploreFilterChip['id']))
+        }
+        onClearAll={
+          hasActiveLabExploreFilters(filters)
+            ? () => setFilters(DEFAULT_LAB_EXPLORE_FILTERS)
+            : undefined
+        }
+        resultSummary={
+          !listLoading
+            ? `${list.length} ${list.length === 1 ? 'lab' : 'labs'}`
+            : undefined
+        }
+      />
+
+      <FilterModal
+        open={filterModal.open}
+        title="Filter labs"
+        subtitle="Research area, team size, and sort apply to the current list."
+        onClose={filterModal.close}
+        onApply={() => filterModal.apply(setFilters)}
+        onReset={() => filterModal.setDraft(DEFAULT_LAB_EXPLORE_FILTERS)}
+      >
+        <LabExploreFilterFields filters={filterModal.draft} onChange={filterModal.setDraft} />
+      </FilterModal>
+
+      <p className="text-xs text-fg-subtle">
+        {selectedInstitution
+          ? institutionLoading
+            ? `Loading labs at ${selectedInstitution.name}…`
+            : filters.query.trim().length >= 2
+              ? `Showing matches within ${selectedInstitution.name}.`
+              : `${list.length} lab${list.length === 1 ? '' : 's'} at ${selectedInstitution.name}.`
+          : showFeatured
+            ? 'Featured labs below — pick an institution above or type 2+ characters to search.'
+            : 'Results include labs whose PI matches your search.'}
+      </p>
 
       {listLoading && (
         <div className="space-y-3" aria-busy="true">
@@ -248,12 +288,12 @@ export function LabExplorePage() {
       {!listLoading &&
         !error &&
         selectedInstitution &&
-        institutionList.length === 0 && (
+        list.length === 0 && (
           <div className="rounded-card border border-border bg-surface-card p-6 text-sm text-fg-muted">
-            {query.trim().length >= 2 ? (
+            {filters.query.trim().length >= 2 ? (
               <>
-                No labs at {selectedInstitution.name} matched &quot;{query.trim()}&quot;. Try a
-                different filter or clear the search box.
+                No labs at {selectedInstitution.name} matched your filters. Try a different search
+                or clear filters.
               </>
             ) : (
               <>
@@ -267,11 +307,11 @@ export function LabExplorePage() {
       {!listLoading &&
         !error &&
         !selectedInstitution &&
-        query.trim().length >= 2 &&
+        filters.query.trim().length >= 2 &&
         list.length === 0 && (
           <div className="rounded-card border border-border bg-surface-card p-6 text-sm text-fg-muted">
-            No labs matched &quot;{query.trim()}&quot;. Try a different spelling, pick an
-            institution above, or search by the professor&apos;s name.
+            No labs matched your search. Try a different spelling, pick an institution above, or
+            search by the professor&apos;s name.
           </div>
         )}
 
@@ -289,7 +329,7 @@ export function LabExplorePage() {
         </div>
       )}
 
-      {!listLoading && selectedInstitution && institutionList.length > 0 && (
+      {!listLoading && selectedInstitution && list.length > 0 && (
         <p className="text-xs font-medium uppercase tracking-wide text-fg-subtle">
           Labs at {selectedInstitution.name}
         </p>

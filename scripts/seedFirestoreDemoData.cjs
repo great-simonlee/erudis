@@ -639,6 +639,19 @@ const PAPERS = [
   },
 ];
 
+const {
+  DEMO_PROFILE_CAREER_BY_UID,
+  DEMO_EXTRA_RESEARCH_LOGS,
+} = require('./demoProfileCareerData.cjs');
+
+for (const user of USERS) {
+  const career = DEMO_PROFILE_CAREER_BY_UID[user.uid];
+  if (career) {
+    if (career.educations) user.educations = career.educations;
+    if (career.workExperiences) user.workExperiences = career.workExperiences;
+  }
+}
+
 const RESEARCH_LOGS = [
   {
     userId: U.phdKim,
@@ -667,6 +680,7 @@ const RESEARCH_LOGS = [
     isPublic: false,
     tags: ['hypothesis'],
   },
+  ...DEMO_EXTRA_RESEARCH_LOGS,
 ];
 
 const COFFEE_CHATS = [

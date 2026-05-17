@@ -58,6 +58,7 @@ export async function createPostAndFanOut(
     attachments: [],
     tags: input.tags,
     researchArea: input.researchArea,
+    likeCount: 0,
     resonateCount: 0,
     viewCount: 0,
     commentCount: 0,

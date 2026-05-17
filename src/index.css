@@ -12,6 +12,10 @@
   --text-soft: #3f3f46;
   --text-muted: #52525b;
   --text-subtle: #71717a;
+  --zone-nav: #f0f0f2;
+  --zone-main: #fafafa;
+  --zone-signals: #f4f4f5;
+  --panel-ring: rgba(29, 158, 117, 0.08);
 }
 
 .dark {
@@ -23,6 +27,10 @@
   --text-soft: #e4e4e7;
   --text-muted: #a1a1aa;
   --text-subtle: #71717a;
+  --zone-nav: #060606;
+  --zone-main: #0c0c0c;
+  --zone-signals: #070707;
+  --panel-ring: rgba(29, 158, 117, 0.12);
 }
 
 @layer base {
@@ -42,5 +50,345 @@
 
   #root {
     min-height: 100vh;
+  }
+}
+
+@layer components {
+  .erudis-app-shell {
+    background-color: var(--surface-bg);
+    background-image:
+      radial-gradient(ellipse 120% 80% at 50% -20%, rgba(29, 158, 117, 0.07), transparent 55%),
+      linear-gradient(
+        to bottom,
+        transparent,
+        transparent 24px,
+        color-mix(in srgb, var(--border-color) 35%, transparent) 24px,
+        color-mix(in srgb, var(--border-color) 35%, transparent) 25px
+      );
+    background-size: 100% 100%, 100% 26px;
+  }
+
+  .dark .erudis-app-shell {
+    background-image:
+      radial-gradient(ellipse 90% 60% at 12% 0%, rgba(29, 158, 117, 0.09), transparent 50%),
+      radial-gradient(ellipse 70% 50% at 88% 8%, rgba(29, 158, 117, 0.04), transparent 45%),
+      linear-gradient(
+        to bottom,
+        transparent,
+        transparent 24px,
+        color-mix(in srgb, var(--border-color) 40%, transparent) 24px,
+        color-mix(in srgb, var(--border-color) 40%, transparent) 25px
+      );
+    background-size: 100% 100%, 100% 100%, 100% 26px;
+  }
+
+  .erudis-zone-nav {
+    background-color: var(--zone-nav);
+    border-right: 1px solid var(--border-color);
+  }
+
+  .erudis-zone-main {
+    background-color: var(--zone-main);
+    box-shadow: inset 1px 0 0 color-mix(in srgb, var(--border-color) 60%, transparent),
+      inset -1px 0 0 color-mix(in srgb, var(--border-color) 60%, transparent);
+  }
+
+  .erudis-zone-signals {
+    background-color: var(--zone-signals);
+    border-left: 1px solid var(--border-color);
+  }
+
+  .erudis-panel {
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background-color: var(--surface-card);
+    box-shadow:
+      0 1px 0 color-mix(in srgb, var(--text-primary) 4%, transparent),
+      0 8px 24px -12px rgba(0, 0, 0, 0.45);
+  }
+
+  .dark .erudis-panel {
+    box-shadow:
+      0 0 0 1px var(--panel-ring),
+      0 12px 32px -16px rgba(0, 0, 0, 0.65);
+  }
+
+  .erudis-masthead {
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .erudis-masthead::after {
+    content: '';
+    display: block;
+    margin-top: 1rem;
+    height: 2px;
+    width: 3rem;
+    background: linear-gradient(90deg, #1d9e75, transparent);
+  }
+
+  .erudis-feed-stage {
+    position: relative;
+    overflow: hidden;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background-color: var(--surface-card);
+    padding: 1rem 1.25rem;
+    box-shadow: 0 4px 20px -8px rgba(0, 0, 0, 0.35);
+  }
+
+  .erudis-composer-strip {
+    position: relative;
+    overflow: hidden;
+    border-radius: 1rem;
+    border: 1px solid color-mix(in srgb, #1d9e75 14%, var(--border-color));
+    background: linear-gradient(
+      165deg,
+      color-mix(in srgb, #1d9e75 5.5%, var(--surface-card)) 0%,
+      var(--surface-card) 52%
+    );
+    padding: 1.35rem 1.25rem 1.4rem;
+    box-shadow:
+      0 1px 0 color-mix(in srgb, #fff 40%, transparent),
+      0 10px 28px -14px rgba(29, 158, 117, 0.18);
+  }
+
+  .dark .erudis-composer-strip {
+    border-color: color-mix(in srgb, #1d9e75 22%, var(--border-color));
+    background: linear-gradient(
+      165deg,
+      color-mix(in srgb, #1d9e75 8%, var(--surface-card)) 0%,
+      var(--surface-card) 55%
+    );
+    box-shadow:
+      0 0 0 1px rgba(29, 158, 117, 0.06),
+      0 12px 32px -16px rgba(0, 0, 0, 0.55);
+  }
+
+  @media (min-width: 768px) {
+    .erudis-composer-strip {
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      background: var(--surface-card);
+      border: 1px solid var(--border-color);
+      box-shadow: 0 4px 20px -8px rgba(0, 0, 0, 0.35);
+    }
+
+    .dark .erudis-composer-strip {
+      box-shadow:
+        0 0 0 1px rgba(29, 158, 117, 0.06),
+        0 12px 32px -16px rgba(0, 0, 0, 0.55);
+    }
+
+    :root:not(.dark) .erudis-composer-strip {
+      box-shadow:
+        0 1px 2px rgba(0, 0, 0, 0.05),
+        0 6px 18px -10px rgba(0, 0, 0, 0.1);
+    }
+  }
+
+  :root:not(.dark) .erudis-feed-stage,
+  :root:not(.dark) .erudis-post-card,
+  :root:not(.dark) .erudis-panel {
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.05),
+      0 6px 18px -10px rgba(0, 0, 0, 0.1);
+  }
+
+  .erudis-nav-deck {
+    margin: 0.75rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background-color: var(--surface-card);
+    overflow: hidden;
+  }
+
+  .erudis-scholar-card {
+    margin: 0 0.75rem 0.75rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background-color: var(--surface-card);
+    overflow: hidden;
+    box-shadow: 0 8px 24px -14px rgba(0, 0, 0, 0.5);
+  }
+
+  .erudis-scholar-stripe {
+    height: 3.5rem;
+    background: repeating-linear-gradient(
+      -12deg,
+      #1d9e75,
+      #1d9e75 2px,
+      #0f5c44 2px,
+      #0f5c44 4px,
+      transparent 4px,
+      transparent 8px
+    );
+    opacity: 0.85;
+  }
+
+  .erudis-post-card {
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background-color: var(--surface-card);
+    border-left-width: 3px;
+    box-shadow: 0 2px 12px -6px rgba(0, 0, 0, 0.4);
+  }
+
+  :root:not(.dark) .erudis-app-shell {
+    background-image:
+      radial-gradient(ellipse 120% 70% at 50% -15%, rgba(29, 158, 117, 0.04), transparent 55%),
+      linear-gradient(
+        to bottom,
+        transparent,
+        transparent 24px,
+        color-mix(in srgb, var(--border-color) 50%, transparent) 24px,
+        color-mix(in srgb, var(--border-color) 50%, transparent) 25px
+      );
+    background-size: 100% 100%, 100% 26px;
+  }
+
+  .erudis-page-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .erudis-section-label {
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: color-mix(in srgb, var(--surface-raised) 80%, var(--surface-card));
+  }
+
+  .erudis-feed-stage::before {
+    content: '';
+    display: block;
+    height: 3px;
+    margin: -1rem -1.25rem 1rem;
+    border-radius: 8px 8px 0 0;
+    background: linear-gradient(90deg, #1d9e75, #0f5c44 55%, transparent);
+  }
+
+  .erudis-skeleton {
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--border-color) 100%, #1d9e75 18%);
+    background: linear-gradient(
+      110deg,
+      var(--surface-raised) 0%,
+      color-mix(in srgb, var(--surface-card) 90%, white 4%) 45%,
+      var(--surface-raised) 90%
+    );
+    background-size: 200% 100%;
+    animation: erudis-shimmer 1.4s ease-in-out infinite;
+  }
+
+  @keyframes erudis-shimmer {
+    0% {
+      background-position: 100% 0;
+    }
+    100% {
+      background-position: -100% 0;
+    }
+  }
+
+  .erudis-empty-state {
+    border-radius: 8px;
+    border: 1px dashed color-mix(in srgb, #1d9e75 45%, var(--border-color));
+    background: color-mix(in srgb, #1d9e75 6%, var(--surface-card));
+    padding: 2rem 1.25rem;
+    text-align: center;
+  }
+
+  /* Mobile: card-on-canvas layout — tuned per theme */
+  @media (max-width: 767px) {
+    .erudis-zone-main {
+      background-color: var(--zone-main);
+      box-shadow: none;
+    }
+
+    .erudis-page-stack {
+      gap: 1.5rem;
+    }
+
+    .erudis-masthead {
+      margin-bottom: 0;
+      padding: 1rem 1rem 0.85rem;
+      border-radius: 8px;
+      border: 1px solid color-mix(in srgb, #1d9e75 22%, var(--border-color));
+      background-color: var(--surface-card);
+    }
+
+    .erudis-masthead::after {
+      margin-top: 0.75rem;
+    }
+
+    .erudis-feed-stage {
+      padding: 1rem;
+    }
+
+    .erudis-feed-stage::before {
+      margin: -1rem -1rem 0.85rem;
+    }
+
+    .erudis-post-card {
+      border-left-width: 4px;
+    }
+
+    .erudis-feed-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    /* Light: soft gray canvas, crisp white cards */
+    :root:not(.dark) {
+      --zone-main: #f0f1f3;
+    }
+
+    :root:not(.dark) .erudis-masthead,
+    :root:not(.dark) .erudis-panel,
+    :root:not(.dark) .erudis-feed-stage,
+    :root:not(.dark) .erudis-post-card,
+    :root:not(.dark) .erudis-section-label {
+      border-color: var(--border-color);
+      box-shadow:
+        0 1px 2px rgba(0, 0, 0, 0.05),
+        0 6px 20px -10px rgba(0, 0, 0, 0.12);
+    }
+
+    :root:not(.dark) .erudis-section-label {
+      background: color-mix(in srgb, #1d9e75 5%, var(--surface-card));
+      border-color: color-mix(in srgb, #1d9e75 18%, var(--border-color));
+    }
+
+    /* Dark: stronger contrast for OLED / night reading */
+    .dark {
+      --surface-card: #181c1b;
+      --surface-raised: #222826;
+      --border-color: #343f3b;
+      --zone-main: #050605;
+    }
+
+    .dark .erudis-masthead,
+    .dark .erudis-panel,
+    .dark .erudis-feed-stage,
+    .dark .erudis-post-card,
+    .dark .erudis-section-label {
+      border-color: color-mix(in srgb, #1d9e75 22%, var(--border-color));
+      box-shadow:
+        0 0 0 1px rgba(29, 158, 117, 0.08),
+        0 12px 32px -16px rgba(0, 0, 0, 0.8);
+    }
+
+    .dark .erudis-masthead {
+      box-shadow:
+        0 0 0 1px rgba(29, 158, 117, 0.1),
+        0 10px 28px -14px rgba(0, 0, 0, 0.75);
+    }
+
+    .dark .erudis-section-label {
+      background: color-mix(in srgb, #1d9e75 10%, var(--surface-card));
+      border-color: color-mix(in srgb, #1d9e75 35%, var(--border-color));
+    }
   }
 }

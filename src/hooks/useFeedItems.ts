@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   collection,
   doc,
-  getDoc,
   getDocs,
   limit,
   orderBy,
@@ -11,7 +10,7 @@ import {
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { db, firebaseReady } from '../lib/firebase';
-import { getPostIfAllowed } from '../lib/firestoreAccess';
+import { getPostIfAllowed, safeGetDoc } from '../lib/firestoreAccess';
 import type { FeedItem, Lab, Post, User } from '../types';
 
 export type FeedRow = {
@@ -34,14 +33,14 @@ async function resolveFeedDocs(
     if (!postId) continue;
     const post = await getPostIfAllowed(fs, postId);
     if (!post) continue;
-    const authorSnap = await getDoc(doc(fs, 'users', post.authorId));
-    const author = authorSnap.exists()
+    const authorSnap = await safeGetDoc(doc(fs, 'users', post.authorId));
+    const author = authorSnap?.exists()
       ? ({ uid: authorSnap.id, ...(authorSnap.data() as Omit<User, 'uid'>) } as User)
       : null;
     let lab: Lab | null = null;
     if (post.labId) {
-      const labSnap = await getDoc(doc(fs, 'labs', post.labId));
-      if (labSnap.exists()) {
+      const labSnap = await safeGetDoc(doc(fs, 'labs', post.labId));
+      if (labSnap?.exists()) {
         lab = { id: labSnap.id, ...(labSnap.data() as Omit<Lab, 'id'>) };
       }
     }
