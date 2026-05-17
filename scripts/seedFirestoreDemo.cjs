@@ -22,6 +22,7 @@ const PROJECT_ID =
   'erudis-47097';
 const {
   USERS,
+  INSTITUTION_DOCS,
   LABS,
   POSTS,
   JOBS,
@@ -123,11 +124,25 @@ async function main() {
     await commitIfNeeded();
   }
 
+  for (const inst of INSTITUTION_DOCS) {
+    const { id, ...rest } = inst;
+    batch.set(db.collection('institutions').doc(id), {
+      ...rest,
+      logoUrl: rest.logoUrl ?? '',
+      coverUrl: rest.coverUrl ?? '',
+      adminUserIds: rest.adminUserIds ?? [],
+      createdAt: now,
+    });
+    ops++;
+    await commitIfNeeded();
+  }
+
   for (const lab of LABS) {
     const { id, ...rest } = lab;
     batch.set(db.collection('labs').doc(id), {
       ...rest,
       logoUrl: rest.logoUrl ?? '',
+      coverUrl: rest.coverUrl ?? '',
       requirePostApproval: rest.requirePostApproval ?? false,
       isLabPro: rest.isLabPro ?? false,
       websiteUrl: rest.websiteUrl ?? '',
@@ -257,6 +272,8 @@ async function main() {
 
   console.log('\nDemo ecosystem seeded.\n');
   console.log('Schools (institutions): MIT, Stanford, Berkeley, Cambridge, Harvard');
+  console.log('  Institution admin demo: /profile/erudis_demo_inst_admin_mit');
+  console.log('  MIT institution page: /institution/massachusetts-institute-of-technology');
   console.log('\nProfiles:');
   for (const u of USERS) {
     console.log(`  /profile/${u.uid}  — ${u.name} (${u.role})`);

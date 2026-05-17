@@ -186,3 +186,96 @@ export async function searchLabsAndProfessors(
 
   return results.slice(0, maxResults);
 }
+
+/** Institutions that have at least one lab on the platform. */
+export async function fetchInstitutionsWithLabs(
+  db: Firestore
+): Promise<{ id: string; name: string }[]> {
+  const snap = await getDocs(query(collection(db, 'labs'), limit(300)));
+  const byId = new Map<string, { id: string; name: string }>();
+  for (const d of snap.docs) {
+    const data = d.data() as Omit<Lab, 'id'>;
+    const name = data.institutionName?.trim();
+    const id = data.institutionId?.trim();
+    if (!name || !id) continue;
+    byId.set(id, { id, name });
+  }
+  return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** All labs affiliated with a school or institution. */
+export async function listLabsByInstitution(
+  db: Firestore,
+  institution: { id: string; name: string },
+  maxResults = 48
+): Promise<LabSearchResult[]> {
+  const piCache = new Map<string, { name: string; role: UserRole | null }>();
+  const byLabId = new Map<string, LabSearchResult>();
+  const nameNorm = institution.name.trim().toLowerCase();
+
+  const addLab = async (lab: Lab) => {
+    if (byLabId.has(lab.id)) return;
+    const pi = await fetchPi(db, lab.piId, piCache);
+    byLabId.set(lab.id, {
+      lab,
+      piName: pi.name,
+      piUid: lab.piId,
+      piRole: pi.role,
+    });
+  };
+
+  try {
+    const snap = await getDocs(
+      query(
+        collection(db, 'labs'),
+        where('institutionId', '==', institution.id),
+        limit(maxResults)
+      )
+    );
+    for (const d of snap.docs) {
+      await addLab(labFromDoc(d.id, d.data() as Omit<Lab, 'id'>));
+    }
+  } catch {
+    /* index may be building — fall through to scan */
+  }
+
+  if (byLabId.size < maxResults) {
+    try {
+      const snap = await getDocs(
+        query(collection(db, 'labs'), orderBy('name'), limit(120))
+      );
+      for (const d of snap.docs) {
+        if (byLabId.size >= maxResults) break;
+        const lab = labFromDoc(d.id, d.data() as Omit<Lab, 'id'>);
+        const idMatch = lab.institutionId === institution.id;
+        const nameMatch =
+          lab.institutionName?.trim().toLowerCase() === nameNorm ||
+          matchesTerm(lab.institutionName, nameNorm);
+        if (idMatch || nameMatch) {
+          await addLab(lab);
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const results = Array.from(byLabId.values());
+  results.sort((a, b) => a.lab.name.localeCompare(b.lab.name));
+  return results.slice(0, maxResults);
+}
+
+export function filterLabSearchResults(
+  rows: LabSearchResult[],
+  rawQuery: string
+): LabSearchResult[] {
+  const term = rawQuery.trim().toLowerCase();
+  if (term.length < 2) return rows;
+  return rows.filter(({ lab, piName }) => {
+    const nameMatch = matchesTerm(lab.name, term);
+    const instMatch = matchesTerm(lab.institutionName, term);
+    const piMatch = matchesTerm(piName, term);
+    const areaMatch = lab.researchAreas?.some((a) => matchesTerm(a, term));
+    return nameMatch || instMatch || piMatch || areaMatch;
+  });
+}

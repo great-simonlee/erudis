@@ -1,17 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Markdown from 'react-markdown';
 import {
-  addDoc,
-  collection,
   deleteDoc,
   doc,
   getDoc,
-  getDocs,
   increment,
-  limit,
-  orderBy,
-  query,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -20,11 +14,10 @@ import { db, firebaseReady } from '../../lib/firebase';
 import { notifyResonate } from '../../lib/notify';
 import { ROUTES } from '../../constants';
 import { useToast } from '../../contexts/ToastContext';
-import { Button } from '../ui/Button';
 import { formatTimeAgo } from '../../utils/timeAgo';
 import { postTypeBadge } from '../../utils/postTypeStyle';
 import { roleLabel } from '../../utils/roleLabels';
-import type { Comment } from '../../types';
+import { PostCommentThread } from './PostCommentThread';
 import type { FeedRow } from '../../hooks/useFeedItems';
 
 type PostCardProps = {
@@ -34,12 +27,12 @@ type PostCardProps = {
   onChanged?: () => void;
 };
 
-function IconWave(props: React.SVGProps<SVGSVGElement>) {
+function IconLike(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden {...props}>
       <path
         fill="currentColor"
-        d="M3 14c1.5-2 2.5-2 4-2s2.5 2 4 2 2.5-2 4-2 2.5 2 4 2 2.5-2 4-2v2c-1.5 0-2.5 2-4 2s-2.5-2-4-2-2.5 2-4 2-2.5-2-4-2-2.5 2-4 2z"
+        d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
       />
     </svg>
   );
@@ -77,63 +70,36 @@ export function PostCard({ row, viewerUid, compact, onChanged }: PostCardProps) 
   const { showToast } = useToast();
   const [expanded, setExpanded] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [commentText, setCommentText] = useState('');
-  const [loadingComments, setLoadingComments] = useState(false);
-  const [resonated, setResonated] = useState(false);
-  const [resonateCount, setResonateCount] = useState(post.resonateCount);
+  const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(post.resonateCount);
   const [bookmarked, setBookmarked] = useState(false);
 
   const badge = useMemo(() => postTypeBadge(post.type), [post.type]);
 
   useEffect(() => {
-    setResonateCount(post.resonateCount);
+    setLikeCount(post.resonateCount);
   }, [post.resonateCount]);
 
   useEffect(() => {
     if (!firebaseReady || !db || !viewerUid) return;
     void (async () => {
       const r = await getDoc(doc(db, 'posts', post.id, 'resonates', viewerUid));
-      setResonated(r.exists());
+      setLiked(r.exists());
       const b = await getDoc(doc(db, 'users', viewerUid, 'bookmarks', post.id));
       setBookmarked(b.exists());
     })();
   }, [post.id, viewerUid]);
 
-  const loadComments = useCallback(async () => {
-    if (!db) return;
-    setLoadingComments(true);
-    try {
-      const qy = query(
-        collection(db, 'posts', post.id, 'comments'),
-        orderBy('createdAt', 'asc'),
-        limit(80)
-      );
-      const snap = await getDocs(qy);
-      const list: Comment[] = snap.docs.map((d) => ({
-        id: d.id,
-        ...(d.data() as Omit<Comment, 'id'>),
-      }));
-      setComments(list);
-    } finally {
-      setLoadingComments(false);
-    }
-  }, [post.id]);
-
-  useEffect(() => {
-    if (commentsOpen) void loadComments();
-  }, [commentsOpen, loadComments]);
-
-  const toggleResonate = async () => {
+  const toggleLike = async () => {
     if (!viewerUid || !db) {
-      showToast('Sign in to resonate.', 'error');
+      showToast('Sign in to like posts.', 'error');
       return;
     }
     const rRef = doc(db, 'posts', post.id, 'resonates', viewerUid);
     const pRef = doc(db, 'posts', post.id);
-    const next = !resonated;
-    setResonated(next);
-    setResonateCount((c) => c + (next ? 1 : -1));
+    const next = !liked;
+    setLiked(next);
+    setLikeCount((c) => c + (next ? 1 : -1));
     try {
       if (next) {
         await setDoc(rRef, { userId: viewerUid, createdAt: serverTimestamp() });
@@ -156,9 +122,9 @@ export function PostCard({ row, viewerUid, compact, onChanged }: PostCardProps) 
       }
       onChanged?.();
     } catch {
-      setResonated(!next);
-      setResonateCount((c) => c + (next ? -1 : 1));
-      showToast('Could not update Resonate.', 'error');
+      setLiked(!next);
+      setLikeCount((c) => c + (next ? -1 : 1));
+      showToast('Could not update like.', 'error');
     }
   };
 
@@ -191,27 +157,6 @@ export function PostCard({ row, viewerUid, compact, onChanged }: PostCardProps) 
       showToast('Link copied to clipboard.', 'success');
     } catch {
       showToast('Could not copy link.', 'error');
-    }
-  };
-
-  const submitComment = async () => {
-    const text = commentText.trim();
-    if (!text || !viewerUid || !db) return;
-    try {
-      await addDoc(collection(db, 'posts', post.id, 'comments'), {
-        postId: post.id,
-        authorId: viewerUid,
-        content: text,
-        parentCommentId: null,
-        createdAt: serverTimestamp(),
-      });
-      await updateDoc(doc(db, 'posts', post.id), { commentCount: increment(1) });
-      setCommentText('');
-      await loadComments();
-      onChanged?.();
-      showToast('Comment added.', 'success');
-    } catch {
-      showToast('Could not post comment.', 'error');
     }
   };
 
@@ -319,14 +264,13 @@ export function PostCard({ row, viewerUid, compact, onChanged }: PostCardProps) 
           <div className="mt-4 flex flex-wrap items-center gap-1 border-t border-border pt-3">
             <button
               type="button"
-              onClick={() => void toggleResonate()}
+              onClick={() => void toggleLike()}
+              aria-pressed={liked}
               className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                resonated
-                  ? 'bg-brand text-white'
-                  : 'text-fg-muted hover:bg-surface-raised'
+                liked ? 'bg-brand text-white' : 'text-fg-muted hover:bg-surface-raised'
               }`}
             >
-              <IconWave /> Resonate <span className="tabular-nums">{resonateCount}</span>
+              <IconLike /> Like <span className="tabular-nums">{likeCount}</span>
             </button>
             <button
               type="button"
@@ -355,38 +299,9 @@ export function PostCard({ row, viewerUid, compact, onChanged }: PostCardProps) 
             </button>
           </div>
 
-          {commentsOpen && (
-            <div className="mt-4 rounded-lg border border-border bg-surface/50 p-3">
-              {loadingComments ? (
-                <p className="text-xs text-fg-subtle">Loading comments…</p>
-              ) : (
-                <ul className="space-y-2">
-                  {comments.map((c) => (
-                    <li key={c.id} className="text-sm text-fg-muted">
-                      <span className="font-medium text-fg-soft">{c.authorId.slice(0, 6)}…</span>:{' '}
-                      {c.content}
-                    </li>
-                  ))}
-                  {comments.length === 0 && (
-                    <li className="text-xs text-fg-subtle">No comments yet.</li>
-                  )}
-                </ul>
-              )}
-              {viewerUid && (
-                <div className="mt-3 flex gap-2">
-                  <input
-                    value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
-                    placeholder="Write a comment…"
-                    className="min-w-0 flex-1 rounded-card border border-border bg-surface-card px-3 py-2 text-sm text-fg placeholder:text-fg-subtle"
-                  />
-                  <Button type="button" variant="outline" onClick={() => void submitComment()}>
-                    Send
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
+          {commentsOpen ? (
+            <PostCommentThread postId={post.id} viewerUid={viewerUid} onChanged={onChanged} />
+          ) : null}
         </div>
       </div>
     </article>

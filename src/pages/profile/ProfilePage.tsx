@@ -20,8 +20,8 @@ import { db, firebaseReady } from '../../lib/firebase';
 import { ROUTES } from '../../constants';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../contexts/ToastContext';
-import { Button } from '../../components/ui/Button';
 import { PostCard } from '../../components/feed/PostCard';
+import { EditableProfileBanner } from '../../components/profile/EditableProfileBanner';
 import { ResearchActivityGraph } from '../../components/profile/ResearchActivityGraph';
 import { CoffeeChatModal } from '../../components/profile/CoffeeChatModal';
 import { notifyFollow } from '../../lib/notify';
@@ -377,109 +377,24 @@ export function ProfilePage() {
 
   return (
     <div className="space-y-8">
-      <section className="relative overflow-hidden rounded-card border border-border bg-surface-card">
-        <div className="h-28 bg-gradient-to-br from-brand/25 via-surface-raised to-surface-card" />
-        <div className="relative px-4 pb-6 pt-0 sm:px-6">
-          <div className="-mt-12 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div className="flex items-end gap-4">
-              {profileUser.avatarUrl ? (
-                <img
-                  src={profileUser.avatarUrl}
-                  alt=""
-                  className="h-20 w-20 rounded-full border-[3px] border-brand object-cover sm:h-24 sm:w-24"
-                />
-              ) : (
-                <div className="flex h-20 w-20 items-center justify-center rounded-full border-[3px] border-brand bg-surface-raised text-2xl font-medium text-fg-muted sm:h-24 sm:w-24">
-                  {profileUser.name.slice(0, 1).toUpperCase()}
-                </div>
-              )}
-              <div>
-                <h1 className="font-display text-2xl text-fg sm:text-3xl">{profileUser.name}</h1>
-                <p className="mt-1 text-sm text-fg-muted">
-                  {roleLabel(profileUser.role)}
-                  {profileUser.institutionName && (
-                    <>
-                      {' '}
-                      · {profileUser.institutionName}
-                    </>
-                  )}
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {profileUser.openToCollaborate && (
-                <span className="rounded-full bg-brand/20 px-3 py-1 text-xs font-medium text-brand">
-                  Open to collaborate
-                </span>
-              )}
-              {isSelf ? (
-                <Link
-                  to={ROUTES.settings}
-                  className="inline-flex items-center justify-center rounded-card border border-border bg-transparent px-4 py-2.5 text-sm font-medium text-fg hover:bg-surface-raised"
-                >
-                  Edit profile
-                </Link>
-              ) : (
-                <>
-                  <Button
-                    type="button"
-                    variant={following ? 'outline' : 'primary'}
-                    disabled={followBusy || !user}
-                    onClick={() => void toggleFollow()}
-                  >
-                    {following ? 'Unfollow' : 'Follow'}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={!user}
-                    onClick={() => setCoffeeOpen(true)}
-                  >
-                    Coffee chat
-                  </Button>
-                  <Button type="button" variant="outline" disabled title="Coming soon">
-                    Message
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-
-          {profileUser.bio && (
-            <p className="mt-4 max-w-2xl text-sm leading-relaxed text-fg-muted">{profileUser.bio}</p>
-          )}
-          {profileUser.researchAreas?.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {profileUser.researchAreas.map((a) => (
-                <span
-                  key={a}
-                  className="rounded-full border border-border px-2 py-0.5 text-xs text-fg-subtle"
-                >
-                  {a}
-                </span>
-              ))}
-            </div>
-          )}
-
-          <div className="mt-6 flex flex-wrap gap-4 border-t border-border pt-4 text-sm">
-            <span>
-              <strong className="text-fg">{papers.length}</strong>{' '}
-              <span className="text-fg-muted">papers</span>
-            </span>
-            <span>
-              <strong className="text-fg">{resonatesReceived}</strong>{' '}
-              <span className="text-fg-muted">resonates on posts</span>
-            </span>
-            <span>
-              <strong className="text-fg">{followerCount}</strong>{' '}
-              <span className="text-fg-muted">followers</span>
-            </span>
-            <span>
-              <strong className="text-fg">{followingCount}</strong>{' '}
-              <span className="text-fg-muted">following</span>
-            </span>
-          </div>
-
+      <EditableProfileBanner
+        profileUser={profileUser}
+        isSelf={isSelf}
+        following={following}
+        followBusy={followBusy}
+        followDisabled={!user}
+        onToggleFollow={() => void toggleFollow()}
+        onCoffeeChat={() => setCoffeeOpen(true)}
+        onMediaUpdated={(patch) =>
+          setProfileUser((u) => (u ? { ...u, ...patch } : u))
+        }
+        stats={{
+          papers: papers.length,
+          resonates: resonatesReceived,
+          followers: followerCount,
+          following: followingCount,
+        }}
+      >
           {isSelf && visitorCount !== null && (
             <div className="mt-4 space-y-3 border-t border-border pt-4">
               <p className="text-xs text-fg-subtle">
@@ -553,8 +468,7 @@ export function ProfilePage() {
               )}
             </div>
           )}
-        </div>
-      </section>
+      </EditableProfileBanner>
 
       <ResearchActivityGraph
         loggedDates={graphStats.loggedDates}

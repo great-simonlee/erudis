@@ -37,12 +37,26 @@ export interface User {
   subscription: SubscriptionTier;
   bio: string;
   avatarUrl: string;
+  /** Personal profile banner image (Firebase Storage). */
+  coverUrl?: string;
   websiteUrl: string;
   profileViews: number;
   /** Fruit ids from {@link LAB_NOTE_GLYPH_CATALOG} — up to 6 picks for the lab-note story grid. */
   labNoteStoryGlyphs?: string[];
   /** Fruit shape target: apple | orange | watermelon */
   labNoteStoryPortrait?: string;
+  createdAt: Timestamp | null;
+}
+
+export interface Institution {
+  id: string;
+  name: string;
+  logoUrl: string;
+  coverUrl: string;
+  description: string;
+  websiteUrl: string;
+  /** Users with institution_admin role who may manage this school. */
+  adminUserIds: string[];
   createdAt: Timestamp | null;
 }
 
@@ -59,6 +73,7 @@ export interface Lab {
   researchAreas: string[];
   description: string;
   logoUrl: string;
+  coverUrl?: string;
   requirePostApproval: boolean;
   isLabPro: boolean;
   followers: string[];

@@ -58,28 +58,10 @@ export function ResearchActivityGraph({
 
   return (
     <section className="overflow-hidden rounded-card border border-border bg-surface-card">
-      <div className="border-b border-border/80 bg-gradient-to-b from-surface-raised/40 to-transparent px-5 py-5 sm:px-7 sm:py-6">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="max-w-xl">
-            <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-brand">
-              Research ritual
-            </p>
-            <h2 className="mt-1 font-display text-xl text-fg sm:text-2xl">Lab-note story</h2>
-            <p className="mt-2 text-sm leading-relaxed text-fg-muted">
-              Paint a pixel fruit with weekday lab notes. Each note adds one colored square —
-              weekends are rest days and do not fill the canvas.
-            </p>
-            {showFruitSettingsLink && activeMeta && (
-              <p className="mt-2 text-xs text-fg-subtle">
-                Growing {activeMeta.emoji} {activeMeta.name} ·{' '}
-                <Link to={ROUTES.settings} className="text-brand hover:underline">
-                  Change fruit in settings
-                </Link>
-              </p>
-            )}
-          </div>
+      <div className="px-5 py-6 sm:px-7 sm:py-8">
+        <div className="relative">
           {currentStreak > 0 && (
-            <div className="flex items-center gap-2 rounded-full border border-brand/30 bg-brand/10 px-3.5 py-1.5 shadow-sm">
+            <div className="mb-4 flex items-center gap-2 rounded-full border border-brand/30 bg-brand/10 px-3.5 py-1.5 shadow-sm lg:absolute lg:right-0 lg:top-0 lg:mb-0">
               <span className="relative flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand opacity-60" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-brand" />
@@ -89,99 +71,119 @@ export function ResearchActivityGraph({
               </span>
             </div>
           )}
-        </div>
-      </div>
 
-      <div className="px-5 py-6 sm:px-7 sm:py-8">
-        <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:gap-10 xl:gap-14">
-          <div className="w-full min-w-0 flex-1 lg:max-w-sm">
-            <p className="text-xs font-medium text-fg-muted">
-              {activeMeta ? (
-                <>
-                  {activeMeta.emoji} {activeMeta.name}
-                </>
-              ) : (
-                'Your canvas'
-              )}
-            </p>
-            <p className="mt-1 text-2xl font-medium tabular-nums tracking-tight text-fg">
-              {progressPct}
-              <span className="text-lg text-fg-subtle">%</span>
-              <span className="ml-2 text-sm font-normal text-fg-subtle">complete</span>
-            </p>
-            <p className="mt-2 text-xs leading-relaxed text-fg-subtle tabular-nums">
-              <span className="text-fg">
-                {filledCount} / {totalFruitCells} pixels
-              </span>
-              <span className="mx-1.5 text-fg-subtle/50">·</span>
-              <span>
-                {weekdayLogCount} weekday notes · ~{weekdaysThisYear}/yr
-              </span>
+          <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(260px,42%)] lg:items-stretch lg:gap-x-10 lg:gap-y-0">
+            <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-brand lg:col-span-2">
+              Research ritual
             </p>
 
-            <div className="mt-4 h-2 overflow-hidden rounded-full bg-surface-raised">
-              <div
-                className="h-full rounded-full transition-all duration-700 ease-out"
-                style={{
-                  width: `${progressPct}%`,
-                  backgroundColor: accent,
-                  boxShadow: progressPct > 0 ? `0 0 12px ${accent}88` : undefined,
-                }}
-              />
-            </div>
-
-            {remaining > 0 && progressPct < 100 && (
-              <p className="mt-2 text-xs text-fg-subtle">
-                {remaining} more weekday {remaining === 1 ? 'note' : 'notes'} to finish this fruit
+            <div className="min-w-0 lg:max-w-xl">
+              <h2 className="font-display text-xl text-fg sm:text-2xl">Lab-note story</h2>
+              <p className="mt-2 text-sm leading-relaxed text-fg-muted">
+                Paint a pixel fruit with weekday lab notes. Each note adds one colored square —
+                weekends are rest days and do not fill the canvas.
               </p>
-            )}
-          </div>
+              {showFruitSettingsLink && activeMeta && (
+                <p className="mt-2 text-xs text-fg-subtle">
+                  Growing {activeMeta.emoji} {activeMeta.name} ·{' '}
+                  <Link to={ROUTES.settings} className="text-brand hover:underline">
+                    Change fruit in settings
+                  </Link>
+                </p>
+              )}
 
-          <div className="w-full shrink-0 self-center lg:w-auto lg:self-auto">
-            <div className="relative mx-auto max-w-[min(100%,18.5rem)] lg:mx-0">
-              <div
-                className="pointer-events-none absolute -inset-6 rounded-[2rem] opacity-60 blur-2xl transition-opacity duration-700"
-                style={{
-                  background: `radial-gradient(circle at 50% 45%, ${accent}33 0%, transparent 70%)`,
-                  opacity: progressPct > 0 ? 0.5 + progressPct / 200 : 0.25,
-                }}
-                aria-hidden
-              />
-              <div className="relative rounded-2xl border border-white/[0.06] bg-[#080b10] p-3 shadow-[inset_0_2px_12px_rgba(0,0,0,0.45)] sm:p-4">
-                <LabNotePixelGrid
-                  size={LAB_NOTE_PORTRAIT_SIZE}
-                  templateColors={pixelState.template}
-                  fills={pixelState.fills}
-                  ghostTemplate
-                  aria-label={`Lab-note story ${progressPct} percent complete`}
-                />
+              <div className="mt-6 border-t border-border/80 pt-6">
+                <p className="text-xs font-medium text-fg-muted">
+                  {activeMeta ? (
+                    <>
+                      {activeMeta.emoji} {activeMeta.name}
+                    </>
+                  ) : (
+                    'Your canvas'
+                  )}
+                </p>
+                <p className="mt-1 text-2xl font-medium tabular-nums tracking-tight text-fg">
+                  {progressPct}
+                  <span className="text-lg text-fg-subtle">%</span>
+                  <span className="ml-2 text-sm font-normal text-fg-subtle">complete</span>
+                </p>
+                <p className="mt-2 text-xs leading-relaxed text-fg-subtle tabular-nums">
+                  <span className="text-fg">
+                    {filledCount} / {totalFruitCells} pixels
+                  </span>
+                  <span className="mx-1.5 text-fg-subtle/50">·</span>
+                  <span>
+                    {weekdayLogCount} weekday notes · ~{weekdaysThisYear}/yr
+                  </span>
+                </p>
+
+                <div className="mt-4 h-2 overflow-hidden rounded-full bg-surface-raised">
+                  <div
+                    className="h-full rounded-full transition-all duration-700 ease-out"
+                    style={{
+                      width: `${progressPct}%`,
+                      backgroundColor: accent,
+                      boxShadow: progressPct > 0 ? `0 0 12px ${accent}88` : undefined,
+                    }}
+                  />
+                </div>
+
+                {remaining > 0 && progressPct < 100 && (
+                  <p className="mt-2 text-xs text-fg-subtle">
+                    {remaining} more weekday {remaining === 1 ? 'note' : 'notes'} to finish this
+                    fruit
+                  </p>
+                )}
               </div>
             </div>
 
-            <div className="mt-5 flex flex-wrap items-center justify-center gap-4 text-[11px] text-fg-subtle lg:justify-start">
-          <span className="inline-flex items-center gap-2">
-            <span
-              className="inline-block size-3 rounded-[2px] border border-white/5"
-              style={{ backgroundColor: '#121820' }}
-            />
-            Unfilled
-          </span>
-          <span className="inline-flex items-center gap-2">
-            <span
-              className="inline-block size-3 rounded-[2px] opacity-50"
-              style={{
-                backgroundColor: `color-mix(in srgb, ${accent} 34%, #121820)`,
-              }}
-            />
-            Preview
-          </span>
-          <span className="inline-flex items-center gap-2">
-            <span
-              className="inline-block size-3 rounded-[2px] ring-1 ring-white/20"
-              style={{ backgroundColor: accent }}
-            />
-            Your note
-          </span>
+            <div className="flex min-h-[17rem] justify-center lg:min-h-0 lg:justify-end lg:self-stretch">
+              <div className="relative aspect-square h-full w-full max-w-[min(100%,22rem)] lg:max-h-[min(100%,32rem)] lg:max-w-[min(100%,32rem)] lg:w-auto">
+                  <div
+                    className="pointer-events-none absolute -inset-4 rounded-[2rem] opacity-60 blur-2xl transition-opacity duration-700 sm:-inset-6"
+                    style={{
+                      background: `radial-gradient(circle at 50% 45%, ${accent}33 0%, transparent 70%)`,
+                      opacity: progressPct > 0 ? 0.5 + progressPct / 200 : 0.25,
+                    }}
+                    aria-hidden
+                  />
+                  <div className="relative flex h-full w-full rounded-2xl border border-white/[0.06] bg-[#080b10] p-2.5 shadow-[inset_0_2px_12px_rgba(0,0,0,0.45)] sm:p-3">
+                    <LabNotePixelGrid
+                      size={LAB_NOTE_PORTRAIT_SIZE}
+                      templateColors={pixelState.template}
+                      fills={pixelState.fills}
+                      ghostTemplate
+                      className="h-full"
+                      aria-label={`Lab-note story ${progressPct} percent complete`}
+                    />
+                  </div>
+              </div>
+            </div>
+
+            <div className="mt-2 flex flex-wrap items-center justify-center gap-4 text-[11px] text-fg-subtle lg:col-span-2 lg:mt-4 lg:justify-end">
+              <span className="inline-flex items-center gap-2">
+                <span
+                  className="inline-block size-3 rounded-[2px] border border-white/5"
+                  style={{ backgroundColor: '#121820' }}
+                />
+                Unfilled
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <span
+                  className="inline-block size-3 rounded-[2px] opacity-50"
+                  style={{
+                    backgroundColor: `color-mix(in srgb, ${accent} 34%, #121820)`,
+                  }}
+                />
+                Preview
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <span
+                  className="inline-block size-3 rounded-[2px] ring-1 ring-white/20"
+                  style={{ backgroundColor: accent }}
+                />
+                Your note
+              </span>
             </div>
           </div>
         </div>

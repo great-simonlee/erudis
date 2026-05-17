@@ -23,7 +23,56 @@ const U = {
   postdocLee: 'erudis_demo_postdoc_lee',
   researcherWalsh: 'erudis_demo_researcher_walsh',
   sciPatel: 'erudis_demo_sci_patel',
+  adminMit: 'erudis_demo_inst_admin_mit',
 };
+
+const INSTITUTION_DOCS = [
+  {
+    id: INSTITUTIONS.mit.id,
+    name: INSTITUTIONS.mit.name,
+    logoUrl: '',
+    coverUrl: '',
+    description: 'Demo institution profile for MIT on THE ERUDIS.',
+    websiteUrl: 'https://web.mit.edu',
+    adminUserIds: ['erudis_demo_inst_admin_mit'],
+  },
+  {
+    id: INSTITUTIONS.stanford.id,
+    name: INSTITUTIONS.stanford.name,
+    logoUrl: '',
+    coverUrl: '',
+    description: '',
+    websiteUrl: 'https://www.stanford.edu',
+    adminUserIds: [],
+  },
+  {
+    id: INSTITUTIONS.berkeley.id,
+    name: INSTITUTIONS.berkeley.name,
+    logoUrl: '',
+    coverUrl: '',
+    description: '',
+    websiteUrl: 'https://www.berkeley.edu',
+    adminUserIds: [],
+  },
+  {
+    id: INSTITUTIONS.cambridge.id,
+    name: INSTITUTIONS.cambridge.name,
+    logoUrl: '',
+    coverUrl: '',
+    description: '',
+    websiteUrl: 'https://www.cam.ac.uk',
+    adminUserIds: [],
+  },
+  {
+    id: INSTITUTIONS.harvard.id,
+    name: INSTITUTIONS.harvard.name,
+    logoUrl: '',
+    coverUrl: '',
+    description: '',
+    websiteUrl: 'https://www.harvard.edu',
+    adminUserIds: [],
+  },
+];
 
 const LAB = {
   mit: 'erudis_demo_lab_mit_rivera',
@@ -32,6 +81,25 @@ const LAB = {
 };
 
 const USERS = [
+  {
+    uid: U.adminMit,
+    name: 'Alex Morgan',
+    email: 'alex.morgan.admin@mit.edu',
+    role: 'institution_admin',
+    institutionId: INSTITUTIONS.mit.id,
+    institutionName: INSTITUTIONS.mit.name,
+    labOnboardingIntent: 'defer',
+    labIds: [],
+    primaryLabId: null,
+    researchAreas: ['Higher Education'],
+    following: [],
+    followers: [],
+    bio: 'MIT institution administrator (demo). Manages labs and researchers at MIT.',
+    openToWork: [],
+    subscription: 'pro',
+    openToCollaborate: false,
+    collaborationTypes: [],
+  },
   {
     uid: U.profRivera,
     name: 'Dr. Elena Rivera',
@@ -657,6 +725,7 @@ const RESEARCH_GRAPHS = [
 
 module.exports = {
   INSTITUTIONS,
+  INSTITUTION_DOCS,
   U,
   LAB,
   USERS,

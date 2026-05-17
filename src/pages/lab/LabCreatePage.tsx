@@ -9,6 +9,7 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import { db, firebaseReady } from '../../lib/firebase';
+import { ensureInstitutionDoc } from '../../lib/institutions';
 import { RESEARCH_FIELD_CATALOG, ROUTES } from '../../constants';
 import { slugify } from '../../constants/institutions';
 import { useAuth } from '../../hooks/useAuth';
@@ -84,6 +85,7 @@ export function LabCreatePage() {
         id: institution.id,
         name: institution.name,
       });
+      await ensureInstitutionDoc(db, institutionId, institution.name);
       const labRef = await addDoc(collection(db, 'labs'), {
         name: n,
         institutionId,
@@ -95,6 +97,7 @@ export function LabCreatePage() {
         researchAreas: areas,
         description: description.trim(),
         logoUrl: '',
+        coverUrl: '',
         requirePostApproval: false,
         isLabPro: false,
         followers: [],

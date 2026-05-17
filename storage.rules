@@ -1,0 +1,75 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function callerUser() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function managesInstitutionId(institutionId) {
+      return isSignedIn()
+        && callerUser().role == 'institution_admin'
+        && callerUser().institutionId == institutionId;
+    }
+
+    function institutionAdminListed(institutionId) {
+      return isSignedIn()
+        && firestore.exists(/databases/(default)/documents/institutions/$(institutionId))
+        && request.auth.uid in firestore.get(/databases/(default)/documents/institutions/$(institutionId)).data.adminUserIds;
+    }
+
+    function canManageInstitution(institutionId) {
+      return managesInstitutionId(institutionId) || institutionAdminListed(institutionId);
+    }
+
+    function canManageLab(labId) {
+      let lab = firestore.get(/databases/(default)/documents/labs/$(labId)).data;
+      return isSignedIn() && (
+        request.auth.uid == lab.piId
+        || canManageInstitution(lab.institutionId)
+      );
+    }
+
+    function imageWriteOk(maxBytes) {
+      return request.resource.size < maxBytes
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    match /avatars/{userId}/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn()
+        && request.auth.uid == userId
+        && imageWriteOk(5 * 1024 * 1024);
+    }
+
+    match /covers/{userId}/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn()
+        && request.auth.uid == userId
+        && imageWriteOk(8 * 1024 * 1024);
+    }
+
+    match /lab-logos/{labId}/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if canManageLab(labId) && imageWriteOk(5 * 1024 * 1024);
+    }
+
+    match /lab-covers/{labId}/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if canManageLab(labId) && imageWriteOk(8 * 1024 * 1024);
+    }
+
+    match /institution-logos/{institutionId}/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if canManageInstitution(institutionId) && imageWriteOk(5 * 1024 * 1024);
+    }
+
+    match /institution-covers/{institutionId}/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if canManageInstitution(institutionId) && imageWriteOk(8 * 1024 * 1024);
+    }
+  }
+}

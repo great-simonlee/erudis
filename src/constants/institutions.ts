@@ -1,4 +1,8 @@
-export type InstitutionRecord = { readonly id: string; readonly name: string };
+export type InstitutionRecord = {
+  readonly id: string;
+  readonly name: string;
+  readonly logoUrl?: string;
+};
 
 export function slugify(name: string): string {
   return name

@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { ROUTES } from '../../constants';
 import { useAuth } from '../../hooks/useAuth';
+import { isInstitutionAdmin } from '../../lib/institutionAccess';
 import { roleLabel } from '../../utils/roleLabels';
 import { ErudisLogo } from '../brand/ErudisLogo';
 import { ThemeToggle } from '../shared/ThemeToggle';
@@ -133,6 +134,11 @@ export function LeftSidebar() {
         <NavLink to={ROUTES.labs} className={navClass} end>
           <IconFlask /> My Labs
         </NavLink>
+        {isInstitutionAdmin(profile) && profile?.institutionId && (
+          <NavLink to={ROUTES.institution(profile.institutionId)} className={navClass}>
+            <IconDoc /> My institution
+          </NavLink>
+        )}
         <NavLink to={ROUTES.papers} className={navClass}>
           <IconDoc /> Papers
         </NavLink>

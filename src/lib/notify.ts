@@ -18,7 +18,7 @@ export async function notifyResonate(
     postTitle: args.postTitle.slice(0, 200),
     labId: null,
     labName: null,
-    message: 'Resonated with your post.',
+    message: 'Liked your post.',
     isRead: false,
     createdAt: serverTimestamp(),
   });

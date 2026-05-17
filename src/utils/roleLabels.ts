@@ -8,7 +8,7 @@ export const ROLE_LABEL: Record<UserRole | string, string> = {
   researcher: 'Researcher',
   research_scientist: 'Research Scientist',
   industry_researcher: 'Industry Researcher',
-  institution_admin: 'Admin',
+  institution_admin: 'Institution administrator',
   general: 'General member',
   pending: 'Member',
 };

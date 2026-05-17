@@ -24,6 +24,8 @@ export const ROUTES = {
   lab: (id: string) => `/lab/${id}`,
   labCreate: '/lab/create',
   labSettings: (id: string) => `/lab/${id}/settings`,
+  institution: (id: string) => `/institution/${id}`,
+  institutionManage: (id: string) => `/institution/${id}/manage`,
   brief: '/brief',
   pricing: '/pricing',
   job: (id: string) => `/jobs/${id}`,

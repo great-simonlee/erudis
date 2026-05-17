@@ -20,6 +20,8 @@ import { LabExplorePage } from './pages/lab/LabExplorePage';
 import { LabCreatePage } from './pages/lab/LabCreatePage';
 import { LabProfilePage } from './pages/lab/LabProfilePage';
 import { LabSettingsPage } from './pages/lab/LabSettingsPage';
+import { InstitutionProfilePage } from './pages/institution/InstitutionProfilePage';
+import { InstitutionAdminPage } from './pages/institution/InstitutionAdminPage';
 import { PapersPage } from './pages/papers/PapersPage';
 import { JobsPage } from './pages/jobs/JobsPage';
 import { JobDetailPage } from './pages/jobs/JobDetailPage';
@@ -52,6 +54,8 @@ export default function App() {
                 <Route path={ROUTES.labCreate} element={<LabCreatePage />} />
                 <Route path="/lab/:labId/settings" element={<LabSettingsPage />} />
                 <Route path="/lab/:labId" element={<LabProfilePage />} />
+                <Route path="/institution/:institutionId/manage" element={<InstitutionAdminPage />} />
+                <Route path="/institution/:institutionId" element={<InstitutionProfilePage />} />
                 <Route path={ROUTES.papers} element={<PapersPage />} />
                 <Route path={ROUTES.jobsPost} element={<JobPostPage />} />
                 <Route path="/jobs/:jobId" element={<JobDetailPage />} />
@@ -85,6 +89,8 @@ export default function App() {
                       <Route path={ROUTES.labCreate} element={<LabCreatePage />} />
                       <Route path="/lab/:labId/settings" element={<LabSettingsPage />} />
                       <Route path="/lab/:labId" element={<LabProfilePage />} />
+                <Route path="/institution/:institutionId/manage" element={<InstitutionAdminPage />} />
+                <Route path="/institution/:institutionId" element={<InstitutionProfilePage />} />
                       <Route path={ROUTES.papers} element={<PapersPage />} />
                       <Route path={ROUTES.jobsPost} element={<JobPostPage />} />
                       <Route path="/jobs/:jobId" element={<JobDetailPage />} />

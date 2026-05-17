@@ -19,7 +19,7 @@ export function MainLayout() {
       <div className="flex flex-1 flex-col pt-14 md:min-h-0 md:flex-row md:overflow-hidden md:pt-0">
         <LeftSidebar />
         <main className="flex-1 min-h-min overflow-visible border-x border-border md:min-h-0 md:overflow-y-auto md:border-x-0">
-          <div className="mx-auto min-h-full max-w-3xl px-4 py-6 pb-24 md:px-8 md:py-8 md:pb-8">
+          <div className="min-h-full w-full px-4 py-6 pb-24 md:px-8 md:py-8 md:pb-8">
             <Outlet />
           </div>
         </main>

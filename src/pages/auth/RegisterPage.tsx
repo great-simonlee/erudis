@@ -126,6 +126,7 @@ export function RegisterPage() {
         subscription: 'free',
         bio: '',
         avatarUrl: '',
+        coverUrl: '',
         websiteUrl: '',
         institutionName: null,
         profileViews: 0,

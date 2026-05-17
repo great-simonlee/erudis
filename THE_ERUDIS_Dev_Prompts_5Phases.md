@@ -6,6 +6,8 @@
 > **Domain:** theerudis.com
 > **Brand Color:** #1D9E75
 
+> **구현 현황:** 아래 5-Phase 프롬프트는 **스펙(요구사항)** 이고, 실제로 지금까지 개발된 내용은 문서 하단 **[개발 구현 현황 (Implementation Log)](#개발-구현-현황-implementation-log)** 에 Phase·파일·Firestore·Storage·시드·델타·미구현까지 상세 기록되어 있다. (갱신: 2026-05-15)
+
 ---
 
 ---
@@ -1370,6 +1372,478 @@ Perform final setup and optimization for THE ERUDIS before deploying to theerudi
 
 ---
 
+# 개발 구현 현황 (Implementation Log)
+
+> **최종 갱신:** 2026-05-15  
+> **저장소:** `great-simonlee/erudis` · **Firebase 프로젝트:** `erudis-47097`  
+> **프론트:** React 19 + TypeScript (CRA) · **백엔드:** Firebase Auth / Firestore / Storage (Cloud Functions **미구현**)  
+> 이 섹션은 위 5-Phase 프롬프트 대비 **실제 코드베이스에 구현된 내용**을 파일·경로·규칙·델타까지 기록한다.
+
+### 전체 완성도 요약
+
+| Phase | 프롬프트 범위 | 구현 상태 | 비고 |
+|-------|--------------|----------|------|
+| **1** | 기반·인증·레이아웃 | **대부분 완료** | 온보딩 5단계 확장, `general` 회원, 이메일 검증 플래그로 우회 가능 |
+| **2** | 피드·프로필·연구 로그 | **대부분 완료** | Lab-note 픽셀 과일 그래프, 프로필/커버 업로드, 무한 스크롤 피드 |
+| **3** | 랩·디스커버·공명 | **부분 완료** | UI는 **Like(하트)** · Firestore는 `resonates` 유지; 디스커버 탭 단순화 |
+| **4** | 방문자·커피챗·채용 | **대부분 완료** | Messages = Coffee Chat; Stripe/Pro 게이팅 UI만 |
+| **5** | AI Brief·결제·배포 | **플레이스홀더** | `/brief`, `/pricing` 안내 페이지; Functions/Stripe 없음 |
+| **추가** | 기관·기관 관리자 | **완료** | `institution_admin`, 학교/랩 로고·커버, 관리 콘솔 |
+
+---
+
+## 0. 프로젝트 구조 & 실행
+
+### 0.1 디렉터리 (실제)
+
+```
+src/
+├── components/
+│   ├── ui/              Button, Input, Label, TextArea, PasswordInput
+│   ├── layout/          Navbar, LeftSidebar, RightSidebar, MainLayout, MobileTabBar, NotificationBell
+│   ├── shared/          AuthGuard, EmailVerifiedGuard, OnboardedGuard, HomeRedirect, ThemeToggle, FirebaseNotice
+│   ├── feed/            PostCard, PostCommentThread, FeedComposerBar, PostComposerModal
+│   ├── profile/         EditableProfileBanner, ResearchActivityGraph, LabNotePixelGrid, CoffeeChatModal, ResearchLogModal, …
+│   ├── lab/             InstitutionLabPicker
+│   └── entity/          EditableEntityBanner (랩·기관 공통 배너/로고)
+├── pages/
+│   ├── auth/            Login, Register, VerifyEmail, ResetPassword
+│   ├── onboarding/      OnboardingPage (5 steps)
+│   ├── feed/            FeedPage
+│   ├── discover/        DiscoverPage, BriefPage (placeholder)
+│   ├── profile/         ProfilePage, ProfileLogsPage
+│   ├── lab/             LabsPage, LabExplorePage, LabCreatePage, LabProfilePage, LabSettingsPage
+│   ├── institution/     InstitutionProfilePage, InstitutionAdminPage
+│   ├── jobs/            JobsPage, JobDetailPage, JobPostPage
+│   ├── papers/          PapersPage
+│   ├── messages/        MessagesPage (coffee chats)
+│   ├── settings/        SettingsPage
+│   └── pricing/         PricingPage (placeholder)
+├── hooks/               useAuth, useFeedItems, useNotifications, useDemoEcosystemBootstrap
+├── lib/                 firebase, createPost, postComments, profileMedia, entityMedia, institutions, institutionAccess, …
+├── contexts/            AuthContext, ThemeContext, ToastContext
+├── constants/           routes, researchFields, institutions catalog, labNotePortraits, openToWork
+├── types/               index.ts (전체 도메인 타입)
+├── utils/               academicEmail, onboardingGate, follow, labSearch, roleLabels, …
+├── config/              flags.ts
+└── dev/                 seed/link demo helpers
+scripts/
+├── seedFirestoreDemo.cjs
+└── seedFirestoreDemoData.cjs
+firestore.rules · firestore.indexes.json · storage.rules · firebase.json
+```
+
+### 0.2 npm 스크립트
+
+| 명령 | 용도 |
+|------|------|
+| `npm run dev` / `start` | 개발 서버 |
+| `npm run build` | 프로덕션 빌드 |
+| `npm run test` | Jest (기본 CRA) |
+| `npm run seed:firestore` | Admin SDK 데모 데이터 시드 |
+| `npm run deploy:indexes` | Firestore 인덱스만 배포 |
+
+### 0.3 환경 변수 (`.env.local`)
+
+```
+REACT_APP_FIREBASE_API_KEY=
+REACT_APP_FIREBASE_AUTH_DOMAIN=
+REACT_APP_FIREBASE_PROJECT_ID=
+REACT_APP_FIREBASE_STORAGE_BUCKET=
+REACT_APP_FIREBASE_MESSAGING_SENDER_ID=
+REACT_APP_FIREBASE_APP_ID=
+REACT_APP_ENABLE_DUMMY_SEED=true   # 선택: 피드 데모 시드 UI
+```
+
+### 0.4 기능 플래그 (`src/config/flags.ts`)
+
+| 플래그 | 기본값 | 의미 |
+|--------|--------|------|
+| `skipFirebase` | `false` | `true`면 Auth 없이 셸만 (개발용) |
+| `useCentralVerificationInbox` | `true` | Auth 이메일을 `info+...@theerudis.com` 별칭으로 (스테이징) |
+| `requireEmailVerification` | `false` | `true`면 이메일 인증 후 온보딩 |
+| `extraInstitutionalEmailDomains` | `['misaeng.com']` | 학교 메일 휴리스틱 추가 도메인 |
+| `enableDummyFeedSeed` | dev 또는 env | FeedPage에서 샘플 데이터 버튼 |
+
+### 0.5 배포 명령 (규칙 반영 시)
+
+```bash
+firebase deploy --only firestore:rules,firestore:indexes
+firebase deploy --only storage
+npm run seed:firestore   # gcloud ADC 또는 GOOGLE_APPLICATION_CREDENTIALS
+```
+
+---
+
+## 1. PHASE 1 — Foundation & Authentication
+
+### 1.1 Prompt 1-1: 프로젝트 초기 세팅 — ✅ 구현됨
+
+| 항목 | 구현 파일 / 내용 |
+|------|------------------|
+| Firebase 초기화 | `src/lib/firebase.ts` — Auth, Firestore, Storage (null-safe) |
+| 타입 정의 | `src/types/index.ts` — 프롬프트보다 **확장** (아래 스키마 참고) |
+| 상수·라우트 | `src/constants/index.ts`, `researchFields.ts`, `institutions.ts` |
+| Tailwind 테마 | `tailwind.config.js` — brand `#1D9E75`, `surface`/`fg` CSS 변수, Playfair Display |
+| 다크/라이트 | `src/contexts/ThemeContext.tsx` + `ThemeToggle` |
+
+**프롬프트 대비 타입 확장:**
+
+- `UserRole`: `research_scientist`, `industry_researcher`, `general`, `pending`, `institution_admin`
+- `User`: `signupIntent`, `institutionName`, `labOnboardingIntent`, `openToWork[]`, `coverUrl`, `labNoteStoryGlyphs`, `labNoteStoryPortrait`
+- `Institution` 컬렉션 타입 **신규**
+- `Lab`: `institutionName`, `department`, `websiteUrl`, `coverUrl`
+- `JobPost`, `CoffeeChat`, `NotificationItem`, `FeedItem`, `ResearchGraph`, `Paper` 등
+
+### 1.2 Prompt 1-2: 인증 시스템 — ✅ 대부분 (플래그·일반 회원 확장)
+
+| 페이지 | 경로 | 파일 | 구현 내용 |
+|--------|------|------|-----------|
+| 회원가입 | `/register` | `RegisterPage.tsx` | 이름·이메일·비밀번호; **학교 메일** 또는 **General member** 체크; 비밀번호 규칙: 대소문자·숫자·특수문자·11자 이상; Firestore `users/{uid}` 생성 (`role: pending`, `coverUrl: ''`) |
+| 이메일 인증 | `/verify-email` | `VerifyEmailPage.tsx` | 재전송·폴링; `requireEmailVerification`이 false면 사실상 우회 |
+| 로그인 | `/login` | `LoginPage.tsx` | `mapAuthError`; 온보딩 완료 여부에 `/feed` vs `/onboarding` |
+| 비밀번호 재설정 | `/reset-password` | `ResetPasswordPage.tsx` | `sendPasswordResetEmail` |
+| 온보딩 | `/onboarding` | `OnboardingPage.tsx` | **5단계** (아래) |
+
+**학교 이메일 검증:** `src/utils/academicEmail.ts` — `.edu`, `.ac.kr`, `.ac.uk` 등 TLD + `extraInstitutionalEmailDomains`
+
+**인증 이메일 별칭:** `src/utils/verificationInbox.ts` — `useCentralVerificationInbox` 시 Auth에는 plus-address, Firestore `email`은 사용자가 입력한 주소 유지
+
+**가드 체인 (`App.tsx`):**
+
+1. `AuthGuard` — 미로그인 → `/login`
+2. `EmailVerifiedGuard` — (플래그 on 시) 미인증 → `/verify-email`
+3. `OnboardedGuard` — `isOnboardingComplete` false → `/onboarding`
+
+**`useAuth`:** `src/hooks/useAuth.ts` + `src/contexts/AuthContext.tsx` — `user`, `profile`, `loading`, `refreshProfile`
+
+**온보딩 5단계 (`OnboardingPage.tsx`):**
+
+1. 역할 선택 (professor, phd, postdoc, research_scientist, industry_researcher, general) — `institution_admin`은 온보딩에서 선택 불가
+2. 연구 분야 (최대 5, `RESEARCH_FIELD_CATALOG` 검색)
+3. 기관 (`INSTITUTION_CATALOG` + custom + general은 스킵 가능)
+4. Open to work (다중 선택, `openToWork.ts`)
+5. 랩 의향: 가입 / 생성 / 나중에 — 교수는 랩 생성 플로우, `ensureInstitutionDoc` + `labs` 문서 생성 가능
+
+**`institution_admin` 온보딩:** `src/utils/onboardingGate.ts` — `institutionId` + `institutionName`만 있으면 완료 (연구 분야·openToWork 불필요)
+
+### 1.3 Prompt 1-3: 메인 레이아웃 & 네비게이션 — ✅ 구현 (일부 프롬프트와 UI 차이)
+
+| 컴포넌트 | 파일 | 내용 |
+|----------|------|------|
+| MainLayout | `MainLayout.tsx` | 좌 240px / 메인 **전체 너비** (`max-w-3xl` 제거됨) / 우 300px; 플로팅 **연구 로그 +** 버튼 |
+| LeftSidebar | `LeftSidebar.tsx` | Home, Discover, **Find labs**, My Labs, Papers, Jobs, Messages, My profile; **My institution** (`institution_admin`); Settings; 하단 아바타 |
+| RightSidebar | `RightSidebar.tsx` | 트렌딩·추천·채용 요약 (Firestore 조회) |
+| Navbar | `Navbar.tsx` | 모바일 상단 + `NotificationBell` |
+| MobileTabBar | `MobileTabBar.tsx` | Home, Discover, Labs, Profile |
+
+**라우트 전체 (`ROUTES` in `constants/index.ts`):**
+
+| 키 | 경로 |
+|----|------|
+| login | `/login` |
+| register | `/register` |
+| verifyEmail | `/verify-email` |
+| resetPassword | `/reset-password` |
+| onboarding | `/onboarding` |
+| feed | `/feed` |
+| discover | `/discover` |
+| brief | `/brief` |
+| labs | `/labs` |
+| labExplore | `/labs/explore` |
+| labCreate | `/lab/create` |
+| lab(id) | `/lab/:id` |
+| labSettings(id) | `/lab/:id/settings` |
+| institution(id) | `/institution/:id` |
+| institutionManage(id) | `/institution/:id/manage` |
+| papers | `/papers` |
+| jobs | `/jobs` |
+| jobsPost | `/jobs/post` |
+| job(id) | `/jobs/:id` |
+| messages | `/messages` |
+| settings | `/settings` |
+| pricing | `/pricing` |
+| profile(uid) | `/profile/:uid` |
+| profileLogs(uid) | `/profile/:uid/logs` |
+
+---
+
+## 2. PHASE 2 — Core Feed & Profile
+
+### 2.1 Prompt 2-1: 홈 피드 — ✅ 구현
+
+| 기능 | 구현 |
+|------|------|
+| 데이터 소스 | `feed/{uid}/items` — `useFeedItems.ts`, 페이지당 15, `startAfter` 페이지네이션 |
+| PostCard | `PostCard.tsx` — 작성자·랩·타입 배지·Markdown·태그 |
+| 공명/좋아요 | Firestore: `posts/{id}/resonates/{uid}`, `resonateCount` — **UI 라벨은 "Like" + 하트 아이콘** (프롬프트 Resonate와 불일치) |
+| 댓글 | `PostCommentThread.tsx` + `postComments.ts` — **스레드 답글**, `parentCommentId`, 최대 깊이 **5** |
+| 북마크 | `users/{uid}/bookmarks/{postId}` |
+| 작성 | `FeedComposerBar` → `PostComposerModal` → `createPost.ts` `createPostAndFanOut` — 클라이언트 배치 fan-out (Functions 없음) |
+| 가시성 | `public` / `members_only` / `private` — `firestoreAccess.getPostIfAllowed` |
+| 로딩 | 스켈레톤, "Load more", 빈 상태 |
+| 데모 시드 | `dev/seedDummyFeedData.ts`, `linkDemoEcosystem.ts`, FeedPage 버튼 (`enableDummyFeedSeed`) |
+
+**Fan-out 로직 (`createPostAndFanOut`):** 작성자 `followers` + (랩 게시 시) 랩 `memberIds` / `labs/{id}/followers` 서브컬렉션 — 규칙에 맞게 `sourceLabId` 필드 설정
+
+### 2.2 Prompt 2-2: 유저 프로필 — ✅ 대부분
+
+| 섹션 | 구현 (`ProfilePage.tsx`) |
+|------|-------------------------|
+| 헤더 | `EditableProfileBanner` — **아바타·커버 Firebase Storage 업로드** (`profileMedia.ts`, `avatars/`, `covers/`) |
+| 통계 | followers / following / resonates received / profile views |
+| Follow | `utils/follow.ts` — `users.following` 배열 + `users/{id}/following|followers` 서브컬렉션 |
+| Coffee Chat | `CoffeeChatModal` → `coffee_chats` 컬렉션 |
+| 연구 활동 그래프 | `ResearchActivityGraph` — **Lab-note 스토리**: 픽셀 과일 실루엣, 평일 로그로 채움 (`labNotePortraits.ts`, `LabNotePixelGrid`) |
+| 최근 로그 | 공개 `research_logs` 미리보기 |
+| 게시물 | 작성자 `posts` 쿼리 + PostCard |
+| 논문 | `papers` by `addedBy` |
+| 랩 | `labIds`로 랩 카드 링크 |
+| 방문자 (본인) | `profile_visits/{uid}/visitors` — Pro 게이트 UI (목록 제한/블러) |
+| Lab-note 설정 | Settings에서 과일 모양·글리프 (프로필 그리드용) |
+
+**프로필 로그 전용 페이지:** `/profile/:uid/logs` — `ProfileLogsPage.tsx`
+
+**연구 로그 작성:** `ResearchLogModal` — `research_logs` + `research_graph/{uid}` streak 갱신 (`researchLogSubmit.ts`)
+
+### 2.3 Prompt 2-3: Research Graph — ✅ (Lab-note 변형으로 구현)
+
+- GitHub 스타일 히트맵 대신 **과일 픽셀 그리드** (apple / orange / watermelon)
+- `research_graph` 문서: `loggedDates`, `currentStreak`, `longestStreak`, `totalLogDays`, `last30DayCount`
+- 로그 저장 시 `storyGlyphId`로 어떤 과일 셀을 채울지 연동 가능
+
+---
+
+## 3. PHASE 3 — Social Layer (Labs, Discovery, Resonate)
+
+### 3.1 Prompt 3-1: Lab System — ✅ + 기관 확장
+
+| 기능 | 파일 | 설명 |
+|------|------|------|
+| My Labs | `LabsPage.tsx` | 내 `labIds` 목록 |
+| Find labs | `LabExplorePage.tsx` | 학교 **필 버튼** + 검색; `utils/labSearch.ts` |
+| 학교 피커 | `InstitutionLabPicker.tsx` | `INSTITUTION_CATALOG` + 플랫폼에 랩 있는 학교; **로고** (`mergeInstitutionLogos`); 선택 시 기관 프로필 링크 |
+| 랩 프로필 | `LabProfilePage.tsx` | `EditableEntityBanner` — **로고·커버**; PI·멤버·게시물·채용·팔로우 |
+| 랩 생성 | `LabCreatePage.tsx` | 교수만; `ensureInstitutionDoc` 후 `labs` 생성 |
+| 랩 설정 | `LabSettingsPage.tsx` | 이름·설명·승인·멤버 UID·이메일 초대·채용 초안·삭제 — **PI 또는 institution_admin** |
+| 랩 팔로우 | `labs/{id}/followers/{uid}` 서브컬렉션 |
+
+**기관(학교) — 프롬프트 이후 추가:**
+
+| 기능 | 파일 |
+|------|------|
+| 기관 프로필 | `InstitutionProfilePage.tsx` — 로고·커버·설명·소속 랩 목록 |
+| 기관 관리 | `InstitutionAdminPage.tsx` — 기관 정보·랩 목록·구성원 **역할 변경** |
+| 접근 제어 | `institutionAccess.ts` — `managesInstitution`, `canManageLab` |
+| 기관 CRUD 헬퍼 | `institutions.ts` — `getInstitution`, `ensureInstitutionDoc`, `listLabsAtInstitution`, `listUsersAtInstitution`, `updateInstitutionProfile`, `updateInstitutionMemberRole` |
+| 미디어 | `entityMedia.ts` — lab/institution logo & cover upload |
+
+### 3.2 Prompt 3-2: Discovery Feed — ⚠️ 부분 구현
+
+`DiscoverPage.tsx` 탭:
+
+| 탭 ID | UI 라벨 | 동작 |
+|-------|---------|------|
+| trending | New | `visibility==public` 최신순 (점수·7일 decay **미구현**) |
+| resonated | Most resonated | `resonateCount` 정렬 |
+| viewed | Most viewed | `viewCount` 정렬 |
+| papers | New papers | `type==paper` |
+| following | Following | `authorId in following` (배치 제한) |
+
+**미구현:** 순위 배지 #1 gold, Breaking 배지, 주간 Brief 배너, 통합 검색(게시물·논문·연구자·랩), 기간 선택기
+
+### 3.3 Prompt 3-3: Resonate 시스템 — ⚠️ 데이터는 resonate, UI는 Like
+
+| 프롬프트 | 실제 |
+|----------|------|
+| Resonate 버튼·웨이브 아이콘 | **Like** + 하트 (`PostCard.tsx`) |
+| 경로 `/resonates/{postId}/users/{uid}` | `posts/{postId}/resonates/{resonatorId}` |
+| 알림 | `notifyResonate` — 메시지 "Liked your post." |
+| NotificationBell | `useNotifications.ts` — resonate, follow, lab_invite 등 |
+| 일일 리더보드 Cloud Function | **없음** |
+
+---
+
+## 4. PHASE 4 — Engagement
+
+### 4.1 Prompt 4-1: 프로필 방문자 — ✅
+
+- 기록: `profile_visits/{visitedUid}/visitors/{visitorUid}` — 이름·기관·역할·`visitCount`·`lastVisitAt`
+- `ProfilePage` 방문 시 `setDoc` merge
+- Free vs Pro: UI에서 방문자 수·목록 제한/업셀 카피 (`subscription` 필드)
+- 규칙: 본인만 read; 방문자만 create/update
+
+### 4.2 Prompt 4-2: Coffee Chat — ✅ (Messages 페이지)
+
+- 컬렉션: `coffee_chats/{id}` — `pending` / `accepted` / `declined`
+- 요청: `CoffeeChatModal` on profile
+- 수신함: `MessagesPage.tsx` — 수락/거절 (`coffeeChats.ts`, 인덱스 쿼리 + fallback)
+- **실시간 DM 스레드는 없음** — 채팅 목록·상태만
+
+### 4.3 Prompt 4-3: Jobs — ✅
+
+| 페이지 | 기능 |
+|--------|------|
+| `JobsPage` | 목록·검색·position type·location·저장(`saved_jobs`) |
+| `JobDetailPage` | 상세·마크다운 |
+| `JobPostPage` | PI / institution_admin / 비랩 게시 |
+| 규칙 | 랩 채용은 `canManageLab`; 개인 게시는 `postedByUserId` |
+
+---
+
+## 5. PHASE 5 — Monetization & Polish
+
+| 프롬프트 항목 | 상태 |
+|---------------|------|
+| AI Weekly Brief (`/brief`) | **플레이스홀더** — Discover 링크만 |
+| Stripe / 구독 결제 | **없음** — `PricingPage` 안내 문구만; `User.subscription` 필드는 시드·수동 설정 |
+| Cloud Functions | **저장소에 functions 폴더 없음** |
+| React.lazy / SEO helmet | **미적용** |
+| Global error boundary / 404 | **미구현** |
+| Firebase Analytics 이벤트 | **미구현** |
+
+---
+
+## 6. Firestore 데이터 모델 (실제 컬렉션)
+
+| 컬렉션 | 문서 ID | 주요 필드 | 비고 |
+|--------|---------|-----------|------|
+| `users` | uid | profile 전체 | institution_admin이 동일 기관 user update 가능 |
+| `users/{uid}/following` | targetUid | — | |
+| `users/{uid}/followers` | followerUid | — | |
+| `users/{uid}/bookmarks` | postId | — | |
+| `users/{uid}/saved_jobs` | jobId | — | |
+| `institutions` | slug id | name, logoUrl, coverUrl, description, websiteUrl, adminUserIds | **신규** |
+| `labs` | auto | piId, memberIds, institutionId, logoUrl, coverUrl, … | update/delete: PI 또는 기관 admin |
+| `labs/{id}/followers` | uid | — | |
+| `lab_invites` | auto | labId, invitedEmail, status | |
+| `posts` | auto | authorId, labId, visibility, resonateCount, … | |
+| `posts/{id}/comments` | auto | parentCommentId | |
+| `posts/{id}/resonates` | resonatorId | — | |
+| `feed/{uid}/items` | auto | postId, authorId, sourceLabId? | fan-out |
+| `notifications/{uid}/items` | auto | type, fromUserId, … | |
+| `research_logs` | auto | userId, isPublic, storyGlyphId? | |
+| `research_graph` | userId | streak fields | |
+| `profile_visits/{uid}/visitors` | visitorUid | visitorName, visitCount, … | |
+| `coffee_chats` | auto | fromUserId, toUserId, status | |
+| `jobs` | auto | labId?, postedByUserId, active, … | |
+| `papers` | auto | addedBy, doi, arxivId, … | |
+
+### 6.1 Firestore 보안 규칙 요약 (`firestore.rules`)
+
+- **기관 관리:** `canManageInstitution`, `institutionAdminListed`, `managesInstitutionId`
+- **랩 관리:** `canManageLab` = PI 또는 해당 랩의 `institutionId` 기관 관리자
+- **게시물 읽기:** `canViewPost` — 작성자 / public / members_only+랩 멤버
+- **게시물 카운트:** 타인은 `resonateCount`·`commentCount`만 increment 패턴으로 update
+- **팔로우:** 타인 `users.followers` 배열에 self add/remove (`followerListSelfUpdate`)
+- **피드 쓰기:** 본인 / 팔로우 관계 / 랩 팔로워·멤버 fan-out 조건
+
+### 6.2 Firestore 인덱스 (`firestore.indexes.json`)
+
+- `posts`: authorId+createdAt, visibility+createdAt, labId+createdAt
+- `lab_invites`: labId+createdAt
+- `research_logs`: userId+createdAt, userId+isPublic+createdAt
+- `papers`: addedBy+createdAt
+- `jobs`: active+createdAt
+- `coffee_chats`: toUserId+createdAt, fromUserId+createdAt
+
+---
+
+## 7. Firebase Storage (`storage.rules`)
+
+| 경로 | 쓰기 권한 | 크기 |
+|------|-----------|------|
+| `avatars/{userId}/*` | 본인 | 5MB 이미지 |
+| `covers/{userId}/*` | 본인 | 8MB |
+| `lab-logos/{labId}/*` | `canManageLab` | 5MB |
+| `lab-covers/{labId}/*` | `canManageLab` | 8MB |
+| `institution-logos/{institutionId}/*` | `canManageInstitution` | 5MB |
+| `institution-covers/{institutionId}/*` | `canManageInstitution` | 8MB |
+
+---
+
+## 8. 데모 데이터 시드 (`npm run seed:firestore`)
+
+**파일:** `scripts/seedFirestoreDemo.cjs` + `seedFirestoreDemoData.cjs`
+
+| 항목 | 내용 |
+|------|------|
+| 기관 5곳 | MIT, Stanford, Berkeley, Cambridge, Harvard — `institutions` 문서 |
+| MIT 기관 관리자 | `erudis_demo_inst_admin_mit` — role `institution_admin` |
+| 사용자 | 교수 3, PhD 2, postdoc, researcher, research scientist 등 |
+| 랩 3 | MIT / Stanford / Berkeley demo labs |
+| 게시물·채용·논문·연구 로그·coffee_chats·research_graph | 풍부한 UI 리뷰용 |
+
+**앱 내 연동:** `REACT_APP_ENABLE_DUMMY_SEED` 또는 dev에서 Feed **Load sample data** → `useDemoEcosystemBootstrap` / `linkDemoEcosystem.ts`
+
+**대표 URL:**
+
+- `/institution/massachusetts-institute-of-technology`
+- `/institution/massachusetts-institute-of-technology/manage` (admin 로그인 시)
+- `/profile/erudis_demo_inst_admin_mit`
+
+---
+
+## 9. `institution_admin` 운영 가이드
+
+1. Firestore `users/{uid}`:
+   - `role: "institution_admin"`
+   - `institutionId`, `institutionName` — 관리할 기관 slug와 일치
+2. `institutions/{institutionId}`:
+   - `adminUserIds` 배열에 uid 추가
+3. 앱에서 **My institution** → 프로필 사진/커버 편집 → **Manage institution**에서 랩·구성원 역할 관리
+
+---
+
+## 10. 프롬프트 대비 주요 델타 (의도적/현재)
+
+| 주제 | 프롬프트 | 현재 구현 |
+|------|----------|-----------|
+| 공명 UI | Resonate, 웨이브 | **Like**, 하트; Firestore 필드명은 resonate 유지 |
+| 비밀번호 | 8자+숫자 1 | 11자+, 대소문자+숫자+특수 |
+| 회원가입 역할 | 4역할 선택 | 가입 시 `pending` → 온보딩에서 역할 |
+| 일반 회원 | 없음 | `general` + 비학교 이메일 허용 |
+| 이메일 인증 | 필수 | `requireEmailVerification: false` 기본 |
+| Fan-out | Cloud Function | **클라이언트** `createPostAndFanOut` |
+| Discovery | 점수·배지·검색 | 단순 쿼리 탭 |
+| Messages | DM | **Coffee chat** 목록 |
+| 기관 | institution_admin만 타입 | **전체 기관 프로필·미디어·관리 콘솔** |
+| 메인 컬럼 | max-width 제한 | **사이드바 사이 전체 너비** |
+
+---
+
+## 11. 미구현 / 다음 작업 후보
+
+- [ ] Cloud Functions: fan-out, resonate 리더보드, AI Brief 생성
+- [ ] Stripe Checkout + webhook + `subscription` 동기화
+- [ ] Resonate → Like UI 정합성 (또는 UI를 다시 Resonate로)
+- [ ] Discovery: 트렌딩 점수, 순위 배지, 통합 검색
+- [ ] Post 첨부 파일 Storage 업로드
+- [ ] 실시간 DM / Messages 확장
+- [ ] `React.lazy`, error boundary, 404, react-helmet-async
+- [ ] Firebase Analytics 커스텀 이벤트
+- [ ] 회원가입 플로우에서 `institution_admin` 자체 등록 (현재 수동/시드)
+
+---
+
+## 12. 구현 파일 빠른 색인 (기능 → 파일)
+
+| 기능 | 핵심 파일 |
+|------|-----------|
+| 라우팅·가드 | `App.tsx`, `AuthGuard.tsx`, `OnboardedGuard.tsx` |
+| 피드 | `FeedPage.tsx`, `useFeedItems.ts`, `PostCard.tsx`, `createPost.ts` |
+| 댓글 스레드 | `PostCommentThread.tsx`, `postComments.ts` |
+| 프로필 미디어 | `EditableProfileBanner.tsx`, `profileMedia.ts` |
+| 랩/기관 미디어 | `EditableEntityBanner.tsx`, `entityMedia.ts` |
+| 기관 관리 | `InstitutionAdminPage.tsx`, `institutions.ts`, `institutionAccess.ts` |
+| 랩 탐색 | `LabExplorePage.tsx`, `labSearch.ts`, `InstitutionLabPicker.tsx` |
+| 알림 | `NotificationBell.tsx`, `notify.ts`, `useNotifications.ts` |
+| 팔로우 | `follow.ts` |
+| 온보딩 완료 판정 | `onboardingGate.ts` |
+| 규칙 | `firestore.rules`, `storage.rules` |
+
+---
+
 # PHASE SUMMARY
 
 | Phase | Focus | Key Deliverables |
@@ -1379,6 +1853,8 @@ Perform final setup and optimization for THE ERUDIS before deploying to theerudi
 | **Phase 3** | Social Layer | Lab System, Discovery Feed, Resonate |
 | **Phase 4** | Engagement | Visitor Tracking, Coffee Chat, Jobs |
 | **Phase 5** | Monetization | AI Brief, Stripe Payments, Deployment |
+
+**→ 상세 구현 상태는 위 [개발 구현 현황 (Implementation Log)](#개발-구현-현황-implementation-log) 섹션 참고.**
 
 ---
 

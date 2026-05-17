@@ -17,6 +17,7 @@ import {
 import { db, firebaseReady } from '../../lib/firebase';
 import { ROUTES } from '../../constants';
 import { useAuth } from '../../hooks/useAuth';
+import { canManageLab } from '../../lib/institutionAccess';
 import { useToast } from '../../contexts/ToastContext';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -26,7 +27,7 @@ import type { Lab, LabInvite } from '../../types';
 
 export function LabSettingsPage() {
   const { labId } = useParams<{ labId: string }>();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [lab, setLab] = useState<Lab | null>(null);
@@ -190,7 +191,7 @@ export function LabSettingsPage() {
     return <div className="h-40 animate-pulse rounded-card border border-border bg-surface-raised/50" />;
   }
 
-  if (!lab || !user || lab.piId !== user.uid) {
+  if (!lab || !user || !canManageLab(profile, lab)) {
     return (
       <div className="space-y-2">
         <p className="text-sm text-fg-muted">You do not have access to these settings.</p>
