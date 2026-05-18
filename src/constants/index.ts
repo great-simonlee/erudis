@@ -30,6 +30,14 @@ export const ROUTES = {
   pricing: '/pricing',
   job: (id: string) => `/jobs/${id}`,
   jobsPost: '/jobs/post',
+  about: '/about',
+  news: '/news',
+  schoolsInstitutions: '/schools-institutions',
+  services: '/services',
+  career: '/career',
+  roadmap: '/roadmap',
+  contact: '/contact',
+  marketing: (slug: string) => `/${slug}`,
 } as const;
 
 export { RESEARCH_FIELD_CATALOG } from './researchFields';

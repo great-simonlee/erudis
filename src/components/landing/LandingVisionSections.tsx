@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { RESEARCH_FIELD_CATALOG } from '../../constants';
 import { ROUTES } from '../../constants';
+import { LandingFooter } from './LandingFooter';
 import { Button } from '../ui/Button';
 
 const FEATURED_FIELDS = [
@@ -18,25 +19,49 @@ const FEATURED_FIELDS = [
   'Materials Science',
 ] as const;
 
+const CROSS_FIELD_EXPLORE = [
+  {
+    title: 'Papers',
+    body: 'Discover preprints and publications from other disciplines—filter by field, venue, and year without leaving your feed.',
+  },
+  {
+    title: 'Studies & methods',
+    body: 'See how neighboring fields frame similar questions—benchmarks, protocols, and study designs worth borrowing.',
+  },
+  {
+    title: 'Experiences',
+    body: 'Read research logs and lab stories from scholars in neuroscience, economics, engineering, and beyond.',
+  },
+] as const;
+
 const PILLARS = [
   {
-    title: 'Research ritual',
-    body: 'Daily logs, streaks, and lab-note stories turn quiet progress into visible momentum—without turning science into performance theater.',
+    title: 'Cross-field discovery',
+    body: 'Step outside your silo. Follow papers, posts, and people in fields you do not work in every day—but might learn from.',
   },
   {
-    title: 'Verified labs & institutions',
-    body: 'Profiles, memberships, and school pages are tied to real academic identity—so you know who you are learning from and collaborating with.',
+    title: 'Share the intelligence',
+    body: 'Publish your work, logs, and lab context so other researchers can see how your field thinks—not just your citations.',
   },
   {
-    title: 'Papers, jobs & discovery',
-    body: 'Share preprints, find openings, and explore work across fields in one feed built for researchers—not generic social noise.',
+    title: 'Shape the world',
+    body: 'Verified identity, institutions, and labs—so the ideas you encounter are tied to real scholars, not anonymous noise.',
   },
 ] as const;
 
 const AUDIENCE = [
-  { label: 'Find your lab or PI', hint: 'Join existing groups or start a new lab page.' },
-  { label: 'Track your research ritual', hint: 'Log experiments, ideas, and writing in public or private.' },
-  { label: 'Discover papers & opportunities', hint: 'Filter by field, institution, and role.' },
+  {
+    label: 'Explore outside your field',
+    hint: 'Papers, studies, and experiences from disciplines you do not study every day.',
+  },
+  {
+    label: 'Share from your discipline',
+    hint: 'Make your lab’s methods and findings legible to curious minds elsewhere.',
+  },
+  {
+    label: 'Connect with real scholars',
+    hint: 'Follow labs, message collaborators, and find opportunities with verified profiles.',
+  },
 ] as const;
 
 function SectionShell({
@@ -63,29 +88,34 @@ export function LandingVisionSections() {
   return (
     <>
       <SectionShell className="bg-surface-raised/60">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand">What is THE ERUDIS?</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand">
+          Share the Intelligence, Shape the World
+        </p>
         <div className="mt-4 grid gap-10 lg:grid-cols-2 lg:items-center">
           <div>
             <h2 className="font-display text-3xl leading-tight text-fg sm:text-4xl">
-              Next-gen network for people who do the work.
+              Intelligence travels further when fields meet.
             </h2>
             <p className="mt-5 max-w-xl text-base leading-relaxed text-fg-muted">
-              THE ERUDIS is a verified academic platform for students, postdocs, PIs, and labs. Combine
-              identity-checked profiles, research logs, papers, and lab pages—so collaboration starts from
-              trust, not guesswork.
+              THE ERUDIS is where researchers share papers, studies, and lived research experiences
+              across disciplines—so a biologist can learn from an economist, and a computer scientist
+              can see how a chemist runs an experiment.
             </p>
             <p className="mt-4 max-w-xl text-sm text-fg-subtle">
-              No fake listings. No anonymous hype. Just transparent profiles, institutions, and research
-              activity you can actually follow.
+              Your home field stays central. Everything else is one scroll away—curated by people,
+              not algorithms shouting for attention.
             </p>
           </div>
-          <ul className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-            {['Verified identity', 'Lab & institution pages', 'Scam-resistant hiring'].map((tag) => (
+          <ul className="grid gap-3">
+            {CROSS_FIELD_EXPLORE.map((item) => (
               <li
-                key={tag}
-                className="rounded-xl border border-border bg-surface-card px-4 py-3 text-sm font-medium text-fg"
+                key={item.title}
+                className="rounded-xl border border-border bg-surface-card px-4 py-4"
               >
-                {tag}
+                <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-brand">
+                  {item.title}
+                </p>
+                <p className="mt-2 text-sm leading-relaxed text-fg-muted">{item.body}</p>
               </li>
             ))}
           </ul>
@@ -93,10 +123,12 @@ export function LandingVisionSections() {
       </SectionShell>
 
       <SectionShell>
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand">Three pillars</p>
-        <h2 className="mt-3 font-display text-3xl text-fg sm:text-4xl">Why THE ERUDIS?</h2>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand">Why join</p>
+        <h2 className="mt-3 font-display text-3xl text-fg sm:text-4xl">
+          Built for curious researchers
+        </h2>
         <p className="mt-3 max-w-2xl text-fg-muted">
-          Three pillars that make research life more visible, more connected, and easier to navigate.
+          Three ways THE ERUDIS turns cross-disciplinary curiosity into something you can act on.
         </p>
         <ul className="mt-10 grid gap-6 md:grid-cols-3">
           {PILLARS.map((p) => (
@@ -115,10 +147,11 @@ export function LandingVisionSections() {
         <div className="grid gap-8 lg:grid-cols-[1fr_1.2fr] lg:items-start">
           <div>
             <h2 className="font-display text-3xl text-fg sm:text-4xl">
-              Explore research across disciplines
+              Every field, one place to explore
             </h2>
             <p className="mt-4 text-fg-muted">
-              From AI/ML to public health—follow fields, labs, and people working on problems you care about.
+              Jump from AI/ML to public health, from economics to materials science—follow the papers,
+              studies, and experiences that catch your eye, even when they are not in your syllabus.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -139,8 +172,8 @@ export function LandingVisionSections() {
           <div>
             <h2 className="font-display text-3xl text-fg sm:text-4xl">Who is THE ERUDIS for?</h2>
             <p className="mt-4 text-fg-muted">
-              Anyone navigating academic life—undergrad researchers, graduate students, postdocs, faculty,
-              and lab staff building something worth sharing.
+              Students, postdocs, faculty, and lab staff who want their own work seen—and who stay
+              curious about how other fields think.
             </p>
           </div>
           <ul className="space-y-3">
@@ -164,11 +197,15 @@ export function LandingVisionSections() {
 
       <SectionShell className="border-t-0 bg-gradient-to-b from-brand/10 to-brand/5">
         <div className="text-center">
-          <h2 className="font-display text-3xl text-fg sm:text-4xl">
-            Join your lab, classmates, and collaborators
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand">
+            Share the Intelligence, Shape the World
+          </p>
+          <h2 className="mt-3 font-display text-3xl text-fg sm:text-4xl">
+            Start exploring—and contributing—today
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-fg-muted">
-            Create a free account with your institutional email and start your research ritual today.
+            Create a free account with your institutional email. Follow other fields, share your own
+            papers and research ritual, and see what clarity looks like from the outside in.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Link to={ROUTES.register}>
@@ -183,24 +220,7 @@ export function LandingVisionSections() {
         </div>
       </SectionShell>
 
-      <footer className="border-t border-border bg-surface px-4 py-10">
-        <div className="mx-auto flex max-w-6xl flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-fg-subtle">
-            © {new Date().getFullYear()} THE ERUDIS · Share the intelligence, shape the world
-          </p>
-          <nav className="flex flex-wrap gap-4 text-sm text-fg-muted">
-            <Link to={ROUTES.register} className="hover:text-brand">
-              Join
-            </Link>
-            <Link to={ROUTES.login} className="hover:text-brand">
-              Sign in
-            </Link>
-            <Link to={ROUTES.pricing} className="hover:text-brand">
-              Pricing
-            </Link>
-          </nav>
-        </div>
-      </footer>
+      <LandingFooter />
     </>
   );
 }

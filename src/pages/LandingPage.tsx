@@ -52,12 +52,15 @@ export function LandingPage() {
         <section className="border-b border-border bg-surface px-4 pb-10 pt-6 sm:pb-16 sm:pt-10 lg:pb-20 lg:pt-14">
           <div className="mx-auto w-full max-w-[22rem] sm:max-w-md lg:grid lg:max-w-6xl lg:grid-cols-2 lg:items-center lg:gap-16 lg:px-0">
             <div className="flex flex-col">
-              <h1 className="text-center font-display text-[1.65rem] font-semibold leading-[1.2] text-fg sm:text-left sm:text-4xl lg:text-5xl lg:leading-tight">
+              <p className="text-center text-[10px] font-medium uppercase tracking-[0.22em] text-brand sm:text-left sm:text-[11px]">
+                Share the Intelligence, Shape the World
+              </p>
+              <h1 className="mt-2 text-center font-display text-[1.65rem] font-semibold leading-[1.2] text-fg sm:text-left sm:text-4xl lg:mt-3 lg:text-5xl lg:leading-tight">
                 Where curiosity becomes clarity
               </h1>
-              <p className="mt-3 hidden text-base text-fg-muted sm:block lg:text-lg">
-                Verified labs, research logs, papers, and opportunities—for students, postdocs, and
-                faculty building real science together.
+              <p className="mt-3 text-center text-sm leading-relaxed text-fg-muted sm:text-left sm:text-base lg:text-lg">
+                Explore papers, studies, and research experiences from fields outside your own—then
+                share what your discipline sees that others might miss.
               </p>
 
               <div id="sign-in" className="mt-6 scroll-mt-20 sm:mt-8 lg:max-w-md">

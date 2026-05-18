@@ -31,6 +31,7 @@ import { SettingsPage } from './pages/settings/SettingsPage';
 import { PricingPage } from './pages/pricing/PricingPage';
 import { ProfilePage } from './pages/profile/ProfilePage';
 import { ProfileLogsPage } from './pages/profile/ProfileLogsPage';
+import { marketingPublicRoutes } from './pages/marketing/marketingRoutes';
 import { ROUTES } from './constants';
 
 export default function App() {
@@ -45,6 +46,7 @@ export default function App() {
               <Route path={ROUTES.login} element={<LoginPage />} />
               <Route path={ROUTES.register} element={<RegisterPage />} />
               <Route path={ROUTES.resetPassword} element={<ResetPasswordPage />} />
+              {marketingPublicRoutes}
               <Route element={<MainLayout />}>
                 <Route path={ROUTES.feed} element={<FeedPage />} />
                 <Route path={ROUTES.discover} element={<DiscoverPage />} />
@@ -74,6 +76,7 @@ export default function App() {
               <Route path={ROUTES.login} element={<LoginPage />} />
               <Route path={ROUTES.register} element={<RegisterPage />} />
               <Route path={ROUTES.resetPassword} element={<ResetPasswordPage />} />
+              {marketingPublicRoutes}
 
               <Route element={<AuthGuard />}>
                 <Route path={ROUTES.verifyEmail} element={<VerifyEmailPage />} />
