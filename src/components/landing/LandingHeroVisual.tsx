@@ -1,7 +1,14 @@
+type LandingHeroVisualProps = {
+  compact?: boolean;
+};
+
 /** Decorative hero illustration — research network motif. */
-export function LandingHeroVisual() {
+export function LandingHeroVisual({ compact = false }: LandingHeroVisualProps) {
   return (
-    <div className="relative mx-auto aspect-square w-full max-w-lg" aria-hidden>
+    <div
+      className={`relative mx-auto aspect-square w-full ${compact ? 'max-w-[17rem] sm:max-w-sm lg:max-w-lg' : 'max-w-lg'}`}
+      aria-hidden
+    >
       <div className="absolute inset-4 rounded-full bg-gradient-to-br from-brand/20 via-brand/5 to-transparent" />
       <div className="absolute inset-0 rounded-[2rem] border border-brand/15 bg-surface-card shadow-xl shadow-brand/5">
         <svg viewBox="0 0 400 400" className="h-full w-full p-8" fill="none">
@@ -29,14 +36,18 @@ export function LandingHeroVisual() {
           />
         </svg>
       </div>
-      <div className="absolute -bottom-2 left-8 rounded-xl border border-border bg-surface-card px-4 py-3 shadow-lg">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-brand">Research ritual</p>
-        <p className="mt-0.5 text-sm font-medium text-fg">12-day streak</p>
-      </div>
-      <div className="absolute -right-2 top-12 rounded-xl border border-border bg-surface-card px-4 py-3 shadow-lg">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-brand">Lab verified</p>
-        <p className="mt-0.5 text-sm font-medium text-fg">Rivera Lab · MIT</p>
-      </div>
+      {!compact ? (
+        <>
+          <div className="absolute -bottom-2 left-8 rounded-xl border border-border bg-surface-card px-4 py-3 shadow-lg">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-brand">Research ritual</p>
+            <p className="mt-0.5 text-sm font-medium text-fg">12-day streak</p>
+          </div>
+          <div className="absolute -right-2 top-12 rounded-xl border border-border bg-surface-card px-4 py-3 shadow-lg">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-brand">Lab verified</p>
+            <p className="mt-0.5 text-sm font-medium text-fg">Rivera Lab · MIT</p>
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }

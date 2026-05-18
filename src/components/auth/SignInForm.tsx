@@ -24,15 +24,26 @@ function nextPath(
 
 type SignInFormProps = {
   showFirebaseNotice?: boolean;
+  /** LinkedIn-style flat form for the public landing hero. */
+  variant?: 'default' | 'landing';
 };
 
-export function SignInForm({ showFirebaseNotice = true }: SignInFormProps) {
+export function SignInForm({
+  showFirebaseNotice = true,
+  variant = 'default',
+}: SignInFormProps) {
   const navigate = useNavigate();
   const { profile } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const isLanding = variant === 'landing';
+  const inputClass = isLanding
+    ? 'mt-1 rounded-md border-zinc-400/80 py-3 text-base dark:border-zinc-500'
+    : 'mt-1.5';
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -58,9 +69,11 @@ export function SignInForm({ showFirebaseNotice = true }: SignInFormProps) {
   return (
     <>
       {showFirebaseNotice ? <FirebaseNotice /> : null}
-      <form className="space-y-4" onSubmit={onSubmit} id="sign-in">
+      <form className={isLanding ? 'space-y-5' : 'space-y-4'} onSubmit={onSubmit}>
         <div>
-          <Label htmlFor="landing-email">Email</Label>
+          <Label htmlFor="landing-email" className={isLanding ? 'text-sm font-semibold text-fg' : undefined}>
+            {isLanding ? 'Email or institutional address' : 'Email'}
+          </Label>
           <Input
             id="landing-email"
             name="email"
@@ -69,34 +82,60 @@ export function SignInForm({ showFirebaseNotice = true }: SignInFormProps) {
             value={email}
             onChange={(ev) => setEmail(ev.target.value)}
             required
-            className="mt-1.5"
+            className={inputClass}
           />
         </div>
         <div>
-          <div className="mb-1.5 flex items-center justify-between">
-            <Label htmlFor="landing-password" className="mb-0">
-              Password
-            </Label>
-            <Link to={ROUTES.resetPassword} className="text-xs font-medium text-brand hover:underline">
+          <Label htmlFor="landing-password" className={isLanding ? 'text-sm font-semibold text-fg' : undefined}>
+            Password
+          </Label>
+          <div className="relative">
+            <Input
+              id="landing-password"
+              name="password"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
+              value={password}
+              onChange={(ev) => setPassword(ev.target.value)}
+              required
+              className={`${inputClass} pr-14`}
+            />
+            {isLanding ? (
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-brand"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-pressed={showPassword}
+              >
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            ) : null}
+          </div>
+          {!isLanding ? (
+            <div className="mt-1.5 flex justify-end">
+              <Link to={ROUTES.resetPassword} className="text-xs font-medium text-brand hover:underline">
+                Forgot password?
+              </Link>
+            </div>
+          ) : (
+            <Link
+              to={ROUTES.resetPassword}
+              className="mt-2 inline-block text-sm font-semibold text-brand hover:underline"
+            >
               Forgot password?
             </Link>
-          </div>
-          <Input
-            id="landing-password"
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(ev) => setPassword(ev.target.value)}
-            required
-          />
+          )}
         </div>
         {error ? (
           <p className="text-sm text-red-500 dark:text-red-400" role="alert">
             {error}
           </p>
         ) : null}
-        <Button type="submit" className="w-full !rounded-full py-3" disabled={submitting || !firebaseReady}>
+        <Button
+          type="submit"
+          className={`w-full py-3 ${isLanding ? '!rounded-full text-base font-semibold' : '!rounded-full'}`}
+          disabled={submitting || !firebaseReady}
+        >
           {submitting ? 'Signing in…' : 'Sign in'}
         </Button>
       </form>

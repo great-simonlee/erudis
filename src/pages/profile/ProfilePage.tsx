@@ -19,6 +19,7 @@ import { resolveFruitShapeId } from '../../constants/labNotePortraits';
 import { db, firebaseReady } from '../../lib/firebase';
 import { ROUTES } from '../../constants';
 import { useAuth } from '../../hooks/useAuth';
+import { ProfileSessionFooter } from '../../components/profile/ProfileSessionFooter';
 import { useToast } from '../../contexts/ToastContext';
 import { PostCard } from '../../components/feed/PostCard';
 import { EditableProfileBanner } from '../../components/profile/EditableProfileBanner';
@@ -800,6 +801,8 @@ export function ProfilePage() {
           <ProfileSectionEmpty>No labs linked.</ProfileSectionEmpty>
         )}
       </ProfileSectionPanel>
+
+      {isSelf ? <ProfileSessionFooter email={profileUser.email} /> : null}
 
       {isSelf && uid && (
         <>

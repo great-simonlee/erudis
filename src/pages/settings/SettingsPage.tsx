@@ -14,6 +14,8 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../contexts/ToastContext';
 import { db, firebaseReady } from '../../lib/firebase';
+import { SignOutConfirmSheet } from '../../components/profile/SignOutConfirmSheet';
+import { useLogOut } from '../../hooks/useLogOut';
 import { enableDummyFeedSeed } from '../../config/flags';
 import { seedPlatformReviewForCurrentUser } from '../../dev/seedPlatformReviewData';
 
@@ -27,6 +29,8 @@ export function SettingsPage() {
   const { preference, setPreference } = useTheme();
   const { user, profile } = useAuth();
   const { showToast } = useToast();
+  const { logOut, signingOut } = useLogOut();
+  const [signOutConfirmOpen, setSignOutConfirmOpen] = useState(false);
 
   const savedShape = resolveFruitShapeId(profile?.labNoteStoryPortrait);
   const [draftShape, setDraftShape] = useState<LabNoteFruitShapeId>(savedShape);
@@ -191,6 +195,33 @@ export function SettingsPage() {
           ))}
         </fieldset>
       </section>
+
+      <section className="mt-8 rounded-card border border-border bg-surface-card p-6">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-fg-subtle">
+          Account
+        </h2>
+        <p className="mt-2 text-sm text-fg-muted">
+          Signed in as {profile?.email ?? user?.email ?? 'your account'}.
+        </p>
+        <div className="mt-6">
+          <Button
+            type="button"
+            variant="outline"
+            className="border-red-500/40 text-red-600 hover:bg-red-500/10 dark:text-red-400"
+            disabled={signingOut}
+            onClick={() => setSignOutConfirmOpen(true)}
+          >
+            Log out
+          </Button>
+        </div>
+      </section>
+
+      <SignOutConfirmSheet
+        open={signOutConfirmOpen}
+        signingOut={signingOut}
+        onClose={() => setSignOutConfirmOpen(false)}
+        onConfirm={() => void logOut()}
+      />
     </div>
   );
 }
