@@ -3,8 +3,9 @@ import { ROUTES } from '../../constants';
 import { useAuth } from '../../hooks/useAuth';
 import { emailVerificationBlocksAccess } from '../../utils/authFlow';
 import { isOnboardingComplete } from '../../utils/onboardingGate';
+import { LandingPage } from '../../pages/LandingPage';
 
-/** Sends signed-in users to the right step (verify → onboarding → feed). */
+/** Public landing at `/`, or redirect signed-in users to verify → onboarding → feed. */
 export function HomeRedirect() {
   const { user, profile, loading, profileLoading } = useAuth();
 
@@ -17,7 +18,7 @@ export function HomeRedirect() {
   }
 
   if (!user) {
-    return <Navigate to={ROUTES.login} replace />;
+    return <LandingPage />;
   }
 
   if (emailVerificationBlocksAccess(user.emailVerified)) {

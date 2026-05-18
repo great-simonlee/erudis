@@ -9,6 +9,8 @@ const MARK = {
 type ErudisLogoProps = {
   variant?: 'sidebar' | 'header';
   link?: boolean;
+  /** Router destination when `link` is true. Defaults to feed. */
+  to?: string;
   className?: string;
 };
 
@@ -96,6 +98,7 @@ function LogoContent({ variant }: { variant: 'sidebar' | 'header' }) {
 export function ErudisLogo({
   variant = 'sidebar',
   link = true,
+  to = ROUTES.feed,
   className = '',
 }: ErudisLogoProps) {
   const content = <LogoContent variant={variant} />;
@@ -106,7 +109,7 @@ export function ErudisLogo({
 
   return (
     <Link
-      to={ROUTES.feed}
+      to={to}
       className={`inline-flex min-w-0 max-w-full rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${className}`}
       aria-label="THE ERUDIS — Share the intelligence, shape the world"
     >

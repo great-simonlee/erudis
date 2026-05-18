@@ -31,3 +31,7 @@ FIRESTORE_RULES.md
 /secrets/
 *-firebase-adminsdk*.json
 *service*account*.json
+
+# Google Cloud CLI (install in $HOME, not inside this repo)
+/google-cloud-sdk/
+google-cloud-cli-*.tar.gz

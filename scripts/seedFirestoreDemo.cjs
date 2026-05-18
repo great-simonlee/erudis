@@ -116,7 +116,8 @@ function initFirebaseAdmin() {
       return;
     }
     console.warn(`GOOGLE_APPLICATION_CREDENTIALS set but file missing: ${resolved}`);
-    console.warn('Falling back to Application Default Credentials (gcloud login)…\n');
+    console.warn('Unsetting GOOGLE_APPLICATION_CREDENTIALS and using Application Default Credentials…\n');
+    delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
   }
 
   try {
